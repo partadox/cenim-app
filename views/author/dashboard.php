@@ -1,0 +1,268 @@
+<?php
+/**
+ * @var array|null $edition
+ * @var array|null $author        paper terpilih (baris authors) atau null
+ * @var array|null $person        baris paper_authors milik orang yang login
+ * @var string     $email
+ * @var array      $papers        semua paper orang ini
+ * @var array      $paperAuthors  semua author paper terpilih
+ * @var array      $committee     baris panitia/reviewer orang ini
+ * @var string     $tab           papers | committee
+ * @var array|null $registration
+ * @var array|null $invoice
+ * @var array|null $receipt
+ * @var bool       $loaAvailable
+ * @var array      $certificates
+ * @var array      $committeeCertificates
+ * @var bool       $certificatesReleased
+ * @var array      $steps
+ */
+
+use Cenim\Core\Csrf;
+use Cenim\Domain\CertificateRepo;
+use Cenim\Domain\RegistrationRepo;
+
+$status      = (string) ($registration['status'] ?? RegistrationRepo::STATUS_DRAFT);
+$displayName = (string) ($person['name'] ?? $committee[0]['name'] ?? $email);
+
+/** Daftar tombol sertifikat (dipakai di kedua tab). */
+$certificateList = static function (array $items, bool $released, string $from, string $emptyNote): void {
+    if ($items === []) {
+        echo '<div class="cn-empty"><i class="fa-regular fa-file-lines"></i>'
+            . e($released ? $emptyNote : 'Certificates will be available after the conference.') . '</div>';
+        return;
+    }
+
+    echo '<div class="d-flex flex-column gap-2">';
+    foreach ($items as $certificate) {
+        $revoked = ($certificate['revoked_at'] ?? null) !== null;
+        echo '<div class="d-flex flex-wrap align-items-center gap-2 border rounded px-3 py-2" style="font-size:13px">'
+            . '<i class="fa-solid fa-certificate" style="color:var(--cn-gold)"></i>'
+            . '<div><b>' . e(CertificateRepo::label((string) $certificate['type'])) . ' certificate</b>'
+            . '<div class="text-muted" style="font-size:11.5px">'
+            . e((string) $certificate['recipient_name'])
+            . (($certificate['number'] ?? '') !== '' ? ' &middot; No. ' . e((string) $certificate['number']) : '')
+            . ' &middot; ' . e((string) $certificate['code']) . '</div></div>';
+
+        if ($revoked) {
+            echo '<span class="cn-badge cn-badge-rejected ms-auto">Revoked</span>';
+        } else {
+            echo '<a class="btn btn-sm btn-gold ms-auto" href="'
+                . e(author_url('certificate.php?id=' . (int) $certificate['id'] . '&from=' . $from)) . '">'
+                . '<i class="fa-regular fa-eye me-1"></i>View &amp; download</a>';
+        }
+        echo '</div>';
+    }
+    echo '</div>';
+};
+?>
+
+<div class="cn-card mb-3">
+    <div class="cn-card-body d-flex flex-wrap align-items-center gap-3">
+        <div class="cn-stat-icon"><i class="fa-solid fa-user"></i></div>
+        <div>
+            <div style="font-size:15px;font-weight:600;color:#101e41"><?= e($displayName) ?></div>
+            <div class="text-muted" style="font-size:12.5px">
+                <?= e($email) ?>
+                <?php if (($person['affiliation'] ?? $committee[0]['affiliation'] ?? '') !== ''): ?>
+                    &middot; <?= e((string) ($person['affiliation'] ?? $committee[0]['affiliation'])) ?>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php if ($edition !== null): ?>
+            <span class="cn-badge cn-badge-submitted ms-auto">
+                <i class="fa-regular fa-calendar me-1"></i><?= e($edition['name']) ?>
+            </span>
+        <?php endif; ?>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-3" style="font-size:13.5px">
+    <?php if ($papers !== []): ?>
+        <li class="nav-item">
+            <a class="nav-link <?= $tab === 'papers' ? 'active' : '' ?>" href="<?= e(author_url('index.php')) ?>">
+                <i class="fa-regular fa-file-lines me-1"></i>Papers
+                <span class="badge text-bg-light border ms-1"><?= count($papers) ?></span>
+            </a>
+        </li>
+    <?php endif; ?>
+    <?php if ($committee !== []): ?>
+        <li class="nav-item">
+            <a class="nav-link <?= $tab === 'committee' ? 'active' : '' ?>" href="<?= e(author_url('index.php?tab=committee')) ?>">
+                <i class="fa-solid fa-people-group me-1"></i>Committee
+            </a>
+        </li>
+    <?php endif; ?>
+</ul>
+
+<?php if ($tab === 'papers' && $author !== null): ?>
+
+    <?php if (count($papers) > 1): ?>
+        <form method="post" class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <?= Csrf::field() ?>
+            <input type="hidden" name="action" value="select_paper">
+            <label for="paper" class="text-muted" style="font-size:12.5px">You are an author of <?= count($papers) ?> papers:</label>
+            <select class="form-select form-select-sm" id="paper" name="paper" style="max-width:520px" onchange="this.form.submit()">
+                <?php $group = null; ?>
+                <?php foreach ($papers as $paper): ?>
+                    <?php $label = (string) ($paper['edition_name'] ?? '') . ((int) ($paper['edition_active'] ?? 1) === 1 ? '' : ' (archive)'); ?>
+                    <?php if ($label !== $group): ?>
+                        <?= $group !== null ? '</optgroup>' : '' ?><optgroup label="<?= e($label) ?>">
+                        <?php $group = $label; ?>
+                    <?php endif; ?>
+                    <option value="<?= (int) $paper['id'] ?>" <?= (int) $paper['id'] === (int) $author['id'] ? 'selected' : '' ?>>
+                        <?= e($paper['paper_id'] . ' — ' . mb_strimwidth((string) ($paper['paper_title'] ?? ''), 0, 80, '…')) ?>
+                    </option>
+                <?php endforeach; ?>
+                <?= $group !== null ? '</optgroup>' : '' ?>
+            </select>
+            <noscript><button class="btn btn-sm btn-outline-secondary">Open</button></noscript>
+        </form>
+    <?php endif; ?>
+
+    <div class="cn-card mb-3">
+        <div class="cn-card-head">
+            <i class="fa-regular fa-file-lines text-muted"></i>
+            <h2>Paper <?= e((string) $author['paper_id']) ?></h2>
+            <?php if (!empty($author['edition_name'])): ?>
+                <span class="cn-badge <?= (int) ($author['edition_active'] ?? 1) === 1 ? 'cn-badge-submitted' : 'cn-badge-draft' ?>"><?= e((string) $author['edition_name']) ?><?= (int) ($author['edition_active'] ?? 1) === 1 ? '' : ' · archive' ?></span>
+            <?php endif; ?>
+            <span class="cn-badge <?= e(RegistrationRepo::statusBadgeClass($status)) ?> ms-auto">
+                Registration: <?= e(ucfirst(str_replace('_', ' ', $status))) ?>
+            </span>
+        </div>
+        <div class="cn-card-body">
+            <?php if (!empty($author['paper_title'])): ?>
+                <div style="font-size:14px;font-weight:600;color:#101e41" class="mb-2"><?= e($author['paper_title']) ?></div>
+            <?php endif; ?>
+            <div class="d-flex flex-wrap gap-2">
+                <?php foreach ($paperAuthors as $pa): ?>
+                    <?php $isMe = (int) $pa['id'] === (int) ($person['id'] ?? 0); ?>
+                    <span class="border rounded px-2 py-1" style="font-size:12px;<?= $isMe ? 'border-color:var(--cn-gold)!important;background:#fff9ea' : '' ?>">
+                        <span class="text-muted"><?= (int) $pa['position'] ?>.</span>
+                        <b><?= e((string) $pa['name']) ?></b>
+                        <?php if ((int) $pa['is_presenter'] === 1): ?>
+                            <i class="fa-solid fa-person-chalkboard ms-1" title="Presenter" style="color:var(--cn-navy)"></i>
+                        <?php endif; ?>
+                        <?php if ($isMe): ?><span class="text-muted">(you)</span><?php endif; ?>
+                    </span>
+                <?php endforeach; ?>
+            </div>
+            <p class="text-muted mb-0 mt-2" style="font-size:11.5px">
+                <i class="fa-solid fa-circle-info me-1"></i>
+                Every author of this paper can fill in the registration and payment forms and sees the same documents.
+                Each form shows who filled it in.
+            </p>
+        </div>
+    </div>
+
+    <?php if ($status === RegistrationRepo::STATUS_REJECTED && ($registration['reject_reason'] ?? '') !== ''): ?>
+        <div class="alert alert-danger" style="font-size:13px">
+            <b><i class="fa-solid fa-circle-exclamation me-1"></i>Correction requested</b>
+            <div class="mt-1"><?= nl2br(e((string) $registration['reject_reason'])) ?></div>
+        </div>
+    <?php endif; ?>
+
+    <div class="cn-steps mb-3">
+        <?php foreach ($steps as $step): ?>
+            <?php $class = match ($step['state']) { 'done' => 'is-done', 'active' => 'is-active', default => '' }; ?>
+            <div class="cn-step <?= $class ?> d-flex flex-column">
+                <div class="d-flex align-items-center justify-content-between">
+                    <span class="cn-step-no">Step <?= e((string) $step['no']) ?></span>
+                    <?php if ($step['state'] === 'done'): ?>
+                        <i class="fa-solid fa-circle-check" style="color:#1a9c62"></i>
+                    <?php elseif ($step['state'] === 'active'): ?>
+                        <i class="fa-solid <?= e($step['icon']) ?>" style="color:var(--cn-navy)"></i>
+                    <?php else: ?>
+                        <i class="fa-solid fa-lock text-muted"></i>
+                    <?php endif; ?>
+                </div>
+                <p class="cn-step-title"><?= e($step['title']) ?></p>
+                <p class="cn-step-note"><?= e($step['note']) ?></p>
+                <?php if (!empty($step['filled_by'])): ?>
+                    <p class="cn-step-note mb-2"><i class="fa-solid fa-user-pen me-1"></i>Filled by <?= e((string) $step['filled_by']) ?></p>
+                <?php endif; ?>
+                <?php if (!empty($step['url']) && !empty($step['cta'])): ?>
+                    <a href="<?= e((string) $step['url']) ?>"
+                       class="btn btn-sm <?= $step['state'] === 'active' ? 'btn-gold' : 'btn-outline-secondary' ?> mt-auto align-self-start">
+                        <?= e((string) $step['cta']) ?><i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                <?php endif; ?>
+            </div>
+        <?php endforeach; ?>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="cn-card h-100">
+                <div class="cn-card-head">
+                    <i class="fa-regular fa-folder-open text-muted"></i>
+                    <h2>Documents</h2>
+                </div>
+                <div class="cn-card-body d-flex flex-column gap-2" style="font-size:13px">
+                    <?php
+                    $docs = [
+                        ['Letter of Acceptance', 'fa-envelope-open-text', $loaAvailable ? author_url('loa.php') : null,
+                            $loaAvailable ? 'Available' : 'Available once the paper is accepted'],
+                        ['Invoice', 'fa-file-invoice', $invoice !== null ? author_url('invoice.php') : null,
+                            $invoice !== null ? (string) $invoice['number'] : 'Not issued yet'],
+                        ['Receipt', 'fa-receipt', $receipt !== null ? author_url('receipt.php') : null,
+                            $receipt !== null ? (string) $receipt['number'] : 'Issued after payment is confirmed'],
+                    ];
+                    ?>
+                    <?php foreach ($docs as [$label, $icon, $url, $note]): ?>
+                        <div class="d-flex align-items-center gap-2 border rounded px-3 py-2">
+                            <i class="fa-solid <?= e($icon) ?> text-muted" style="width:18px"></i>
+                            <div><b><?= e($label) ?></b><div class="text-muted" style="font-size:11.5px"><?= e($note) ?></div></div>
+                            <?php if ($url !== null): ?>
+                                <a class="btn btn-sm btn-outline-secondary ms-auto" href="<?= e($url) ?>">Open<i class="fa-solid fa-arrow-right ms-1"></i></a>
+                            <?php else: ?>
+                                <i class="fa-solid fa-lock text-muted ms-auto"></i>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="cn-card h-100">
+                <div class="cn-card-head">
+                    <i class="fa-solid fa-certificate text-muted"></i>
+                    <h2>My certificates for this paper</h2>
+                </div>
+                <div class="cn-card-body">
+                    <?php $certificateList($certificates, $certificatesReleased, 'papers', 'Certificates appear here once the registration of this paper is paid.'); ?>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<?php elseif ($tab === 'committee' && $committee !== []): ?>
+
+    <div class="cn-card mb-3">
+        <div class="cn-card-head">
+            <i class="fa-solid fa-people-group text-muted"></i>
+            <h2>Your committee roles</h2>
+        </div>
+        <div class="cn-card-body d-flex flex-wrap gap-2" style="font-size:13px">
+            <?php foreach ($committee as $row): ?>
+                <span class="border rounded px-2 py-1">
+                    <b><?= e((string) ($row['role'] ?: 'Committee')) ?></b>
+                    <?php if (!empty($row['edition_name'])): ?><span class="text-muted">&middot; <?= e((string) $row['edition_name']) ?></span><?php endif; ?>
+                    <?php if (($row['division'] ?? '') !== ''): ?><span class="text-muted">&middot; <?= e((string) $row['division']) ?></span><?php endif; ?>
+                </span>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <div class="cn-card">
+        <div class="cn-card-head">
+            <i class="fa-solid fa-certificate text-muted"></i>
+            <h2>Committee certificates</h2>
+        </div>
+        <div class="cn-card-body">
+            <?php $certificateList($committeeCertificates, $certificatesReleased, 'committee', 'No certificate has been issued for your role yet.'); ?>
+        </div>
+    </div>
+
+<?php endif; ?>

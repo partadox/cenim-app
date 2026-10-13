@@ -1,0 +1,45 @@
+# SUMBER untuk <web root>/.htaccess — copy file ini ke sana dengan nama
+# ".htaccess" (produksi: public_html/conf/cenim/.htaccess).
+#
+# Isi web root:  cenim-app/ (repo)  cenim-old/ (situs lama)  index.php  .htaccess
+# Semua aturan memakai path relatif, jadi tidak bergantung pada /conf/cenim.
+
+Options -Indexes
+# index.html untuk arsip lama di cenim-old/ (direktif ini menimpa default server).
+DirectoryIndex index.php index.html index.htm
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # ── Situs lama ──────────────────────────────────────────────────────────
+    # Folder arsip dipindah ke cenim-old/, tapi URL publiknya TIDAK berubah
+    # (/conf/cenim/2024/ tetap jalan) karena tautan itu sudah tersebar di
+    # paper, IEEE Xplore, dan email. assets/ ikut diteruskan karena halaman
+    # lama merujuk ../assets/.
+    RewriteRule ^(2018|2019|2020|2021|2022|2023|2024|2025|coming-soon)$ %{REQUEST_URI}/ [R=301,L]
+    RewriteRule ^((?:2018|2019|2020|2021|2022|2023|2024|2025|coming-soon|assets)/.*)$ cenim-old/$1 [L]
+
+    # ── Panel & halaman aplikasi tanpa "cenim-app" di URL ───────────────────
+    # /conf/cenim/author/… dan /conf/cenim/4dm1n/… dilayani dari cenim-app/
+    # (internal, alamat di browser tidak berubah). Daftar segmen harus sama
+    # dengan app_routes() di cenim-app/src/helpers.php; "4dm1n" = admin_dir.
+    RewriteRule ^(4dm1n|author)$ %{REQUEST_URI}/ [R=301,L]
+    RewriteRule ^((?:4dm1n|author|api|public|site)/.*)$ cenim-app/$1 [L]
+
+    # ── Halaman publik baru ─────────────────────────────────────────────────
+    # Dilayani index.php. verify.php WAJIB tetap di alamat ini: URL itulah
+    # yang tertanam di QR code setiap sertifikat.
+    RewriteRule ^(registration|submission|workshop|verify)\.php$ index.php [L]
+</IfModule>
+
+# File tersembunyi (.git, .env, .htaccess) dan log PHP tidak pernah disajikan.
+RedirectMatch 404 /\.(?!well-known/)
+<FilesMatch "^(error_log|.*\.log)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>

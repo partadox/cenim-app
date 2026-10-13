@@ -1,0 +1,79 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Yang TIDAK boleh masuk repo. Repo ini publik-aman: tanpa kredensial, tanpa
+# data peserta, tanpa database. Template konfigurasi ada di .env.example.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Kredensial (SMTP, object storage Tandikat, hash key admin, Turnstile)
+.env
+.env.*
+!.env.example
+*.local.php
+config/*.local.php
+config/env.php
+
+# Dokumentasi internal (arsitektur, struktur server, langkah deploy, key contoh
+# development, runbook deploy, panduan admin) — README.md yang ikut ke repo
+# publik hanya ringkasan
+README.internal.md
+docs/
+
+# Kunci & sertifikat
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+
+# Storage lokal (upload, PDF hasil generate, log, backup, cache) — di production
+# ada di luar web root (STORAGE_PATH) atau object storage
+storage/*
+!storage/.htaccess
+
+# Database & backup
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.db
+*.sqlite.gz
+*.sql.gz
+*.bak
+backup/
+backups/
+
+# Log
+*.log
+logs/
+
+# Ekspor data peserta (nama, email, afiliasi) — jangan masuk repo
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.ods
+
+# Aset tema ada di object storage Tandikat (bin/storage.php push-theme), bukan di repo
+assets/theme/
+
+# Dependensi & cache build (bila nanti dipakai)
+vendor/
+node_modules/
+.phpunit.cache/
+.php-cs-fixer.cache
+
+# File uji sementara
+zz-*
+*.tmp
+
+# OS / editor
+.DS_Store
+._*
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+.idea/
+.vscode/

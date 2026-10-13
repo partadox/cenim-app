@@ -1,0 +1,72 @@
+# Folder aplikasi CENIM. Yang boleh diakses browser hanya:
+#   4dm1n/*.php, author/*.php, api/*.php, public/*.php, assets/*
+# Folder internal (config, db, src, views, vendor-lite, storage, reference)
+# punya .htaccess sendiri yang menolak semua request.
+
+Options -Indexes
+
+# .git (folder repo hasil clone cPanel Git Version Control), dotfile lain, dan
+# deploy/ (sumber berkas web root, bukan untuk diakses dari sini) -> 404.
+RedirectMatch 404 /(\.(?!well-known/)|deploy(/|$))
+
+# Ekspor data peserta (CSV/XLSX dari EDAS, dsb.) tidak pernah boleh terunduh dari web.
+RedirectMatch 404 (?i)\.(csv|tsv|xlsx?|sqlite)$
+
+# Aset tema & media publik ada di object storage Tandikat, bukan di repo.
+# Selama berkasnya tidak ada di disk, URL-nya dilayani public/asset.php.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Alamat lama /conf/cenim/cenim-app/author/… dan /cenim-app/4dm1n/… →
+    # alamat baru /conf/cenim/author/… (bookmark & tautan di email lama tetap jalan).
+    # Dicek pada baris request ASLI (THE_REQUEST): request /conf/cenim/author/…
+    # yang diteruskan rewrite root juga lewat sini dengan REQUEST_URI berisi
+    # "/cenim-app/", jadi memakai REQUEST_URI akan membuat redirect berputar.
+    # Hanya path yang ditangkap; query string asli disambung otomatis oleh
+    # Apache ("?" hasil tangkapan ditolak Apache 2.4.60+ sebagai unsafe).
+    RewriteCond %{THE_REQUEST} ^\S+\s([^?\s]*?)/cenim-app/((?:4dm1n|author)(?:/[^?\s]*)?)(?:\?\S*)?\s
+    RewriteRule ^ %1/%2 [R=301,L,NE]
+
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^assets/((?:theme|media)/.+)$ public/asset.php?p=$1 [B,L]
+</IfModule>
+
+# Jangan pernah menyajikan file sensitif walau salah taruh.
+# .env berisi kredensial; .env.example ikut diblok agar struktur config tidak terbaca.
+<FilesMatch "^\.env">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<FilesMatch "\.(sqlite|sqlite3|db|sql|log|json|md|ini|lock|bak|swp|dist|example\.php)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<FilesMatch "^(bootstrap\.php|\.DS_Store)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Cache aset panel.
+<IfModule mod_expires.c>
+    ExpiresActive On
+    <FilesMatch "\.(css|js|woff2|png|svg)$">
+        ExpiresDefault "access plus 7 days"
+    </FilesMatch>
+</IfModule>

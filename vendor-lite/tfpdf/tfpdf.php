@@ -488,6 +488,9 @@ function AddFont($family, $style='', $file='', $uni=false)
 		$ttfstat = stat($ttffilename);
 		if (file_exists($unifilename.'.mtx.php')) {
 			include($unifilename.'.mtx.php');
+			// CENIM: cache menyimpan path absolut saat dibuat (mis. mesin developer);
+			// selalu pakai lokasi font yang sebenarnya di server ini.
+			$ttffile = $ttffilename;
 		}
 		if (!isset($type) ||  !isset($name) || $originalsize != $ttfstat['size']) {
 			$ttffile = $ttffilename;

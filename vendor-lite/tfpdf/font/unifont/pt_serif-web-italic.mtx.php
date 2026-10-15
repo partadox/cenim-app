@@ -13,7 +13,7 @@ $desc=array (
 );
 $up=-75;
 $ut=50;
-$ttffile='/Users/artakusuma/dev/cenim/cenim-app/vendor-lite/fonts/PT_Serif-Web-Italic.ttf';
+$ttffile=''; // diisi ulang tfpdf.php dari lokasi font sebenarnya
 $originalsize=375356;
 $fontkey='ptserifI';
 ?>

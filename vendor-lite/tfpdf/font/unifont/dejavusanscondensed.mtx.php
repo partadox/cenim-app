@@ -13,7 +13,7 @@ $desc=array (
 );
 $up=-63;
 $ut=44;
-$ttffile='/Users/artakusuma/dev/cenim/cenim-app/vendor-lite/tfpdf/font/unifont/DejaVuSansCondensed.ttf';
+$ttffile=''; // diisi ulang tfpdf.php dari lokasi font sebenarnya
 $originalsize=680264;
 $fontkey='dejavu';
 ?>

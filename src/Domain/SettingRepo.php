@@ -12,6 +12,9 @@ use Cenim\Core\Db;
  */
 final class SettingRepo
 {
+    public const DEFAULT_CHAIR_TITLE     = 'General Chair {edition_name}';
+    public const DEFAULT_TREASURER_TITLE = 'Treasurer {edition_name}';
+
     /** @var array<int,array<string,mixed>> cache per edition_id */
     private static array $cache = [];
 
@@ -96,5 +99,51 @@ final class SettingRepo
         });
 
         unset(self::$cache[$editionId]);
+    }
+
+    /**
+     * Chair konferensi — satu sumber untuk LoA, receipt, sertifikat, dan
+     * penutup email. Nilai lama dari Settings → Email (mail_signature_*)
+     * dipakai sebagai cadangan agar data yang sudah diisi tidak hilang.
+     *
+     * @return array{name:string,title:string}
+     */
+    public static function chair(int $editionId): array
+    {
+        $edition = EditionRepo::find($editionId) ?? [];
+        $name    = self::getString($editionId, 'signatory_name');
+        $title   = self::getString($editionId, 'signatory_title');
+
+        if ($name === '') {
+            $name = self::getString($editionId, 'mail_signature_name');
+        }
+        if ($title === '') {
+            $title = self::getString($editionId, 'mail_signature_role', self::DEFAULT_CHAIR_TITLE);
+        }
+
+        return ['name' => $name, 'title' => self::editionTokens($edition, $title)];
+    }
+
+    /**
+     * Treasurer konferensi — menandatangani invoice dan receipt.
+     *
+     * @return array{name:string,title:string}
+     */
+    public static function treasurer(int $editionId): array
+    {
+        $edition = EditionRepo::find($editionId) ?? [];
+
+        return [
+            'name'  => self::getString($editionId, 'treasurer_name'),
+            'title' => self::editionTokens($edition, self::getString($editionId, 'treasurer_title', self::DEFAULT_TREASURER_TITLE)),
+        ];
+    }
+
+    private static function editionTokens(array $edition, string $text): string
+    {
+        return trim(strtr($text, [
+            '{edition_name}' => (string) ($edition['name'] ?? cfg('app_name')),
+            '{edition_year}' => (string) ($edition['year'] ?? date('Y')),
+        ]));
     }
 }

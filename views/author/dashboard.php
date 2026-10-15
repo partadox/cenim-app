@@ -12,7 +12,7 @@
  * @var array|null $invoice
  * @var array|null $receipt
  * @var bool       $loaAvailable
- * @var array      $certificates
+ * @var array      $certificates  sertifikat semua author paper terpilih (termasuk award)
  * @var array      $committeeCertificates
  * @var bool       $certificatesReleased
  * @var array      $steps
@@ -47,7 +47,7 @@ $certificateList = static function (array $items, bool $released, string $from, 
         if ($revoked) {
             echo '<span class="cn-badge cn-badge-rejected ms-auto">Revoked</span>';
         } else {
-            echo '<a class="btn btn-sm btn-gold ms-auto" href="'
+            echo '<a class="btn btn-sm btn-gold ms-auto" target="_blank" rel="noopener" href="'
                 . e(author_url('certificate.php?id=' . (int) $certificate['id'] . '&from=' . $from)) . '">'
                 . '<i class="fa-regular fa-eye me-1"></i>View &amp; download</a>';
         }
@@ -135,23 +135,94 @@ $certificateList = static function (array $items, bool $released, string $from, 
             <?php if (!empty($author['paper_title'])): ?>
                 <div style="font-size:14px;font-weight:600;color:#101e41" class="mb-2"><?= e($author['paper_title']) ?></div>
             <?php endif; ?>
-            <div class="d-flex flex-wrap gap-2">
-                <?php foreach ($paperAuthors as $pa): ?>
-                    <?php $isMe = (int) $pa['id'] === (int) ($person['id'] ?? 0); ?>
-                    <span class="border rounded px-2 py-1" style="font-size:12px;<?= $isMe ? 'border-color:var(--cn-gold)!important;background:#fff9ea' : '' ?>">
-                        <span class="text-muted"><?= (int) $pa['position'] ?>.</span>
-                        <b><?= e((string) $pa['name']) ?></b>
-                        <?php if ((int) $pa['is_presenter'] === 1): ?>
-                            <i class="fa-solid fa-person-chalkboard ms-1" title="Presenter" style="color:var(--cn-navy)"></i>
-                        <?php endif; ?>
-                        <?php if ($isMe): ?><span class="text-muted">(you)</span><?php endif; ?>
-                    </span>
-                <?php endforeach; ?>
+            <?php
+            $byPerson = [];
+            $awards   = [];
+            foreach ($certificates as $certificate) {
+                if ((string) $certificate['type'] === CertificateRepo::TYPE_AWARD) {
+                    $awards[] = $certificate;
+                } else {
+                    $byPerson[(int) $certificate['recipient_ref_id']][] = $certificate;
+                }
+            }
+            $certButton = static function (array $certificate, string $label): string {
+                if (($certificate['revoked_at'] ?? null) !== null) {
+                    return '<span class="cn-badge cn-badge-rejected">' . e($label) . ' · revoked</span>';
+                }
+
+                return '<a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" title="'
+                    . e($label . ' certificate · ' . (string) $certificate['code']) . '" href="'
+                    . e(author_url('certificate.php?id=' . (int) $certificate['id'] . '&from=papers')) . '">'
+                    . '<i class="fa-solid fa-certificate me-1" style="color:var(--cn-gold)"></i>' . e($label) . '</a>';
+            };
+            ?>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0" style="font-size:13px">
+                    <thead>
+                        <tr class="text-muted" style="font-size:11.5px">
+                            <th style="width:36px">#</th>
+                            <th>Author</th>
+                            <th>Affiliation</th>
+                            <th class="text-end">Certificates</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($paperAuthors as $pa): ?>
+                            <?php $isMe = (int) $pa['id'] === (int) ($person['id'] ?? 0); ?>
+                            <tr<?= $isMe ? ' style="--bs-table-bg:#fff9ea"' : '' ?>>
+                                <td class="text-muted"><?= (int) $pa['position'] ?></td>
+                                <td>
+                                    <b><?= e((string) $pa['name']) ?></b>
+                                    <?php if ((int) $pa['is_presenter'] === 1): ?>
+                                        <span class="cn-badge cn-badge-submitted ms-1"><i class="fa-solid fa-person-chalkboard me-1"></i>Presenter</span>
+                                    <?php endif; ?>
+                                    <?php if ($isMe): ?><span class="text-muted">(you)</span><?php endif; ?>
+                                    <?php if (($pa['email'] ?? '') !== ''): ?>
+                                        <div class="text-muted" style="font-size:11.5px"><?= e((string) $pa['email']) ?></div>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-muted"><?= e((string) ($pa['affiliation'] ?? '')) ?></td>
+                                <td class="text-end">
+                                    <?php if (!empty($byPerson[(int) $pa['id']])): ?>
+                                        <div class="d-inline-flex flex-wrap justify-content-end gap-1">
+                                            <?php foreach ($byPerson[(int) $pa['id']] as $certificate): ?>
+                                                <?= $certButton($certificate, CertificateRepo::label((string) $certificate['type'])) ?>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <span class="text-muted" style="font-size:11.5px">
+                                            <?= $certificatesReleased ? 'After the registration is paid' : 'After the conference' ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
             </div>
+
+            <?php if ($awards !== []): ?>
+                <div class="mt-3 mb-1" style="font-size:12.5px;font-weight:600;color:#101e41">
+                    <i class="fa-solid fa-trophy me-1" style="color:var(--cn-gold)"></i>Awards
+                </div>
+                <div class="d-flex flex-column gap-2">
+                    <?php foreach ($awards as $certificate): ?>
+                        <div class="d-flex flex-wrap align-items-center gap-2 border rounded px-3 py-2" style="font-size:13px;background:#fffbf0">
+                            <i class="fa-solid fa-award" style="color:var(--cn-gold)"></i>
+                            <div>
+                                <b><?= e((string) ($certificate['subject_title'] ?: 'Award')) ?></b>
+                                <div class="text-muted" style="font-size:11.5px"><?= e((string) $certificate['recipient_name']) ?></div>
+                            </div>
+                            <div class="ms-auto"><?= $certButton($certificate, 'Certificate') ?></div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+
             <p class="text-muted mb-0 mt-2" style="font-size:11.5px">
                 <i class="fa-solid fa-circle-info me-1"></i>
-                Every author of this paper can fill in the registration and payment forms and sees the same documents.
-                Each form shows who filled it in.
+                Every author of this paper can fill in the registration and payment forms, sees the same documents,
+                and can download the certificates of all authors. Each form shows who filled it in.
             </p>
         </div>
     </div>
@@ -183,56 +254,45 @@ $certificateList = static function (array $items, bool $released, string $from, 
                     <p class="cn-step-note mb-2"><i class="fa-solid fa-user-pen me-1"></i>Filled by <?= e((string) $step['filled_by']) ?></p>
                 <?php endif; ?>
                 <?php if (!empty($step['url']) && !empty($step['cta'])): ?>
-                    <a href="<?= e((string) $step['url']) ?>"
+                    <a href="<?= e((string) $step['url']) ?>" target="_blank" rel="noopener"
                        class="btn btn-sm <?= $step['state'] === 'active' ? 'btn-gold' : 'btn-outline-secondary' ?> mt-auto align-self-start">
-                        <?= e((string) $step['cta']) ?><i class="fa-solid fa-arrow-right ms-1"></i>
+                        <?= e((string) $step['cta']) ?><i class="fa-solid fa-arrow-up-right-from-square ms-1"></i>
                     </a>
                 <?php endif; ?>
             </div>
         <?php endforeach; ?>
     </div>
 
-    <div class="row g-3">
-        <div class="col-lg-6">
-            <div class="cn-card h-100">
-                <div class="cn-card-head">
-                    <i class="fa-regular fa-folder-open text-muted"></i>
-                    <h2>Documents</h2>
-                </div>
-                <div class="cn-card-body d-flex flex-column gap-2" style="font-size:13px">
-                    <?php
-                    $docs = [
-                        ['Letter of Acceptance', 'fa-envelope-open-text', $loaAvailable ? author_url('loa.php') : null,
-                            $loaAvailable ? 'Available' : 'Available once the paper is accepted'],
-                        ['Invoice', 'fa-file-invoice', $invoice !== null ? author_url('invoice.php') : null,
-                            $invoice !== null ? (string) $invoice['number'] : 'Not issued yet'],
-                        ['Receipt', 'fa-receipt', $receipt !== null ? author_url('receipt.php') : null,
-                            $receipt !== null ? (string) $receipt['number'] : 'Issued after payment is confirmed'],
-                    ];
-                    ?>
-                    <?php foreach ($docs as [$label, $icon, $url, $note]): ?>
-                        <div class="d-flex align-items-center gap-2 border rounded px-3 py-2">
+    <div class="cn-card">
+        <div class="cn-card-head">
+            <i class="fa-regular fa-folder-open text-muted"></i>
+            <h2>Documents</h2>
+        </div>
+        <div class="cn-card-body" style="font-size:13px">
+            <?php
+            $docs = [
+                ['Letter of Acceptance', 'fa-envelope-open-text', $loaAvailable ? author_url('loa.php') : null,
+                    $loaAvailable ? 'Available' : 'Available once the paper is accepted'],
+                ['Invoice', 'fa-file-invoice', $invoice !== null ? author_url('invoice.php') : null,
+                    $invoice !== null ? (string) $invoice['number'] : 'Not issued yet'],
+                ['Receipt', 'fa-receipt', $receipt !== null ? author_url('receipt.php') : null,
+                    $receipt !== null ? (string) $receipt['number'] : 'Issued after payment is confirmed'],
+            ];
+            ?>
+            <div class="row g-2">
+                <?php foreach ($docs as [$label, $icon, $url, $note]): ?>
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center gap-2 border rounded px-3 py-2 h-100">
                             <i class="fa-solid <?= e($icon) ?> text-muted" style="width:18px"></i>
                             <div><b><?= e($label) ?></b><div class="text-muted" style="font-size:11.5px"><?= e($note) ?></div></div>
                             <?php if ($url !== null): ?>
-                                <a class="btn btn-sm btn-outline-secondary ms-auto" href="<?= e($url) ?>">Open<i class="fa-solid fa-arrow-right ms-1"></i></a>
+                                <a class="btn btn-sm btn-outline-secondary ms-auto" href="<?= e($url) ?>" target="_blank" rel="noopener">Open<i class="fa-solid fa-arrow-up-right-from-square ms-1"></i></a>
                             <?php else: ?>
                                 <i class="fa-solid fa-lock text-muted ms-auto"></i>
                             <?php endif; ?>
                         </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-6">
-            <div class="cn-card h-100">
-                <div class="cn-card-head">
-                    <i class="fa-solid fa-certificate text-muted"></i>
-                    <h2>My certificates for this paper</h2>
-                </div>
-                <div class="cn-card-body">
-                    <?php $certificateList($certificates, $certificatesReleased, 'papers', 'Certificates appear here once the registration of this paper is paid.'); ?>
-                </div>
+                    </div>
+                <?php endforeach; ?>
             </div>
         </div>
     </div>

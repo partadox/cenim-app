@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cenim\Pdf;
 
+use Cenim\Domain\BrandingRepo;
 use Cenim\Domain\EditionRepo;
 use Cenim\Domain\LoaRepo;
 use Cenim\Domain\PaperAuthorRepo;
@@ -38,7 +39,8 @@ final class LoaPdf extends PdfBase
 
         $pdf->SetTextColor(0, 0, 0);
         $pdf->SetFont('dejavu', '', 10);
-        $pdf->Cell(0, 5, 'Surabaya, ' . fmt_date((string) ($paper['loa_issued_at'] ?? now())), 0, 1, 'R');
+        $city = SettingRepo::getString($editionId, 'loa_city', LoaRepo::DEFAULT_CITY);
+        $pdf->Cell(0, 5, ($city !== '' ? $city . ', ' : '') . fmt_date((string) ($paper['loa_issued_at'] ?? now())), 0, 1, 'R');
         $pdf->Ln(2);
 
         // ── Penerima: semua author ──────────────────────────────────────────
@@ -66,11 +68,8 @@ final class LoaPdf extends PdfBase
             'Status'   => 'Accepted',
         ], static fn (string $v): bool => $v !== ''));
 
-        $pdf->signatureBlock(
-            SettingRepo::getString($editionId, 'signatory_name'),
-            SettingRepo::getString($editionId, 'signatory_title'),
-            ReceiptPdf::signaturePath($editionId)
-        );
+        $chair = SettingRepo::chair($editionId);
+        $pdf->signatureBlock($chair['name'], $chair['title'], BrandingRepo::signaturePath($editionId, 'chair'), 'Sincerely,');
 
         return (string) $pdf->Output('S');
     }

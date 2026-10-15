@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cenim\Domain;
 
 use Cenim\Core\Db;
+use Cenim\Support\Text;
 
 /**
  * Daftar panitia. Dipakai untuk sertifikat panitia (Fase 6) dan nanti untuk
@@ -125,11 +126,12 @@ final class CommitteeRepo
 
     private static function normalize(array $data): array
     {
+        // Nama & instansi: huruf kapital di awal kata saja (lihat Text::titleCase).
         return [
-            'name'            => trim((string) ($data['name'] ?? '')),
+            'name'            => Text::titleCase((string) ($data['name'] ?? '')),
             'email'           => self::nullable($data['email'] ?? null, 190),
             'role'            => self::nullable($data['role'] ?? null, 190),
-            'affiliation'     => self::nullable($data['affiliation'] ?? null, 255),
+            'affiliation'     => self::nullable(Text::titleCase((string) ($data['affiliation'] ?? '')), 255),
             'division'        => self::nullable($data['division'] ?? null, 190),
             'sort'            => (int) ($data['sort'] ?? 0),
             'show_on_landing' => !empty($data['show_on_landing']) ? 1 : 0,

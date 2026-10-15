@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cenim\Pdf;
 
 use Cenim\Core\Db;
+use Cenim\Domain\BrandingRepo;
 use Cenim\Domain\InvoiceRepo;
 use Cenim\Domain\SettingRepo;
 
@@ -131,6 +132,9 @@ final class InvoicePdf extends PdfBase
             . 'payment so the committee can confirm it and issue your official receipt.'
             . ($contact !== '' ? "\nQuestions: " . $contact : '')
         );
+
+        $treasurer = SettingRepo::treasurer($editionId);
+        $pdf->signatureBlock($treasurer['name'], $treasurer['title'], BrandingRepo::signaturePath($editionId, 'treasurer'));
 
         return (string) $pdf->Output('S');
     }

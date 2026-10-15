@@ -263,16 +263,20 @@ $steps = [
 ];
 
 // ── Sertifikat: terbit otomatis setelah tanggal rilis (idempoten) ────────────
+// Semua author paper ini, supaya satu author bisa mengunduhkan sertifikat rekannya.
+$paperAuthors = $author !== null ? PaperAuthorRepo::forPaper((int) $author['id']) : [];
 $certificates = [];
-if ($author !== null && $person !== null) {
+if ($author !== null) {
     if ($released) {
-        CertificateRepo::ensureForPerson(
-            $editionId,
-            $person,
-            CertificateRepo::eligibleTypesForPerson($editionId, $author, $person, $registration, $invoice)
-        );
+        foreach ($paperAuthors as $paperAuthor) {
+            CertificateRepo::ensureForPerson(
+                $editionId,
+                $paperAuthor,
+                CertificateRepo::eligibleTypesForPerson($editionId, $author, $paperAuthor, $registration, $invoice)
+            );
+        }
     }
-    $certificates = CertificateRepo::forPerson($editionId, (int) $person['id']);
+    $certificates = CertificateRepo::forPaperAuthors($editionId, array_column($paperAuthors, 'id'));
 }
 
 // Peran panitia bisa dari beberapa edisi; tiap edisi punya template & tanggal rilis sendiri.
@@ -299,7 +303,7 @@ View::render('author/dashboard', [
     'person'       => $person,
     'email'        => AuthorAuth::email(),
     'papers'       => AuthorAuth::papers(),
-    'paperAuthors' => $author !== null ? PaperAuthorRepo::forPaper((int) $author['id']) : [],
+    'paperAuthors' => $paperAuthors,
     'committee'    => $committee,
     'tab'          => $tab,
     'registration' => $registration,

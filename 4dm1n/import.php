@@ -66,8 +66,15 @@ $kinds = [
         'keyLabel' => 'Name',
         'help'     => 'One row per person. Rows are matched to existing members by <b>email</b> (or name when the email is empty). '
             . 'The <b>email</b> is what they use to sign in (6-digit code) and download their certificate — rows without '
-            . 'an email are imported but cannot sign in. An empty role becomes "Reviewer".',
+            . 'an email are imported but cannot sign in. Rows without a role or division get the values chosen below. '
+            . 'Names and affiliations are capitalised automatically (INSTITUT TEKNOLOGI → Institut Teknologi; acronyms such as ITS or IEEE are kept).',
         'options'  => ['show_on_landing' => 'Show imported people in the committee list on the landing page'],
+        // Isian untuk baris yang kolom role/division-nya kosong atau tidak dipetakan
+        // (mis. daftar TPC dari EDAS: nama, instansi, negara, email saja).
+        'defaults' => [
+            'role'     => ['label' => 'Role for rows without one', 'value' => 'Reviewer', 'list' => []],
+            'division' => ['label' => 'Division for rows without one', 'value' => '', 'list' => CommitteeRepo::divisions($editionId)],
+        ],
     ],
 ];
 
@@ -136,6 +143,9 @@ if (is_post() && $action === 'confirm') {
     $stats  = ['inserted' => 0, 'updated' => 0, 'skipped' => 0, 'warnings' => 0, 'papers_created' => 0];
     $issues = [];
     $options = ['show_on_landing' => input_bool('show_on_landing')];
+    foreach (array_keys($def['defaults'] ?? []) as $field) {
+        $options['default_' . $field] = mb_substr(trim((string) input('default_' . $field, '')), 0, 190);
+    }
 
     Db::transaction(static function () use ($csv, $mapping, $kind, $editionId, $options, &$stats, &$issues): void {
         $orderInPaper = [];
@@ -222,7 +232,10 @@ if (is_post() && $action === 'confirm') {
 
             $data['email'] = $email;
             if (($data['role'] ?? '') === '') {
-                $data['role'] = $existing['role'] ?? 'Reviewer';
+                $data['role'] = $existing['role'] ?? ($options['default_role'] !== '' ? $options['default_role'] : 'Reviewer');
+            }
+            if (($data['division'] ?? '') === '' && $existing === null && $options['default_division'] !== '') {
+                $data['division'] = $options['default_division'];
             }
 
             if ($existing !== null) {

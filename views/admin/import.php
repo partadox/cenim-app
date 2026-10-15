@@ -98,6 +98,23 @@ $selfUrl = admin_url('import.php?kind=' . $kind);
                     <?php endforeach; ?>
                 </div>
 
+                <?php if (!empty($def['defaults'])): ?>
+                    <div class="row g-2 mt-2">
+                        <?php foreach ($def['defaults'] as $field => $default): ?>
+                            <div class="col-md-6 col-xl-4">
+                                <label class="form-label" for="default_<?= e($field) ?>" style="font-size:12.5px"><?= e($default['label']) ?></label>
+                                <input type="text" class="form-control form-control-sm" id="default_<?= e($field) ?>" name="default_<?= e($field) ?>"
+                                       value="<?= e((string) $default['value']) ?>" maxlength="190" list="default_<?= e($field) ?>_list">
+                                <?php if ($default['list'] !== []): ?>
+                                    <datalist id="default_<?= e($field) ?>_list">
+                                        <?php foreach ($default['list'] as $item): ?><option value="<?= e((string) $item) ?>"><?php endforeach; ?>
+                                    </datalist>
+                                <?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+
                 <?php foreach ($def['options'] as $name => $label): ?>
                     <div class="form-check mt-3">
                         <input class="form-check-input" type="checkbox" id="opt_<?= e($name) ?>" name="<?= e($name) ?>" value="1">

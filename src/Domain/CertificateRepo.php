@@ -363,6 +363,28 @@ final class CertificateRepo
     }
 
     /**
+     * Sertifikat seluruh author satu paper (baris paper_authors), termasuk award.
+     *
+     * @param  array<int,int> $paperAuthorIds
+     * @return array<int,array<string,mixed>>
+     */
+    public static function forPaperAuthors(int $editionId, array $paperAuthorIds): array
+    {
+        $paperAuthorIds = array_values(array_filter(array_map('intval', $paperAuthorIds)));
+        if ($paperAuthorIds === []) {
+            return [];
+        }
+
+        return Db::all(
+            "SELECT * FROM certificates
+             WHERE edition_id = ? AND recipient_ref_type = 'paper_author'
+               AND recipient_ref_id IN (" . implode(',', array_fill(0, count($paperAuthorIds), '?')) . ")
+             ORDER BY CASE type WHEN 'author' THEN 0 WHEN 'presenter' THEN 1 WHEN 'participant' THEN 2 ELSE 3 END, id",
+            array_merge([$editionId], $paperAuthorIds)
+        );
+    }
+
+    /**
      * Sertifikat committee untuk baris-baris panitia tertentu.
      *
      * @param array<int,int> $committeeIds

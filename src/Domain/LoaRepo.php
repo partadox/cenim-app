@@ -16,6 +16,9 @@ use Cenim\Core\Numbering;
  */
 final class LoaRepo
 {
+    /** Kota terbit surat bila Settings → Letter of Acceptance → Issuing city belum diisi. */
+    public const DEFAULT_CITY = 'Surabaya';
+
     public const DEFAULT_BODY = "We are pleased to inform you that your paper entitled \"{paper_title}\" (Paper ID {paper_id}), "
         . "authored by {authors}, has been ACCEPTED for presentation at {edition_name}, held on {conference_dates} "
         . "in Surabaya, Indonesia.\n\n"

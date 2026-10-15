@@ -132,6 +132,25 @@ final class AuthorAuth
         return array_map(static fn (array $p): int => (int) $p['me_id'], self::papers());
     }
 
+    /**
+     * Semua baris paper_authors pada paper milik orang ini (termasuk rekan
+     * penulis) — satu author boleh mengunduhkan sertifikat seluruh author paper.
+     *
+     * @return array<int,int>
+     */
+    public static function coAuthorIds(): array
+    {
+        $paperIds = array_map(static fn (array $p): int => (int) $p['id'], self::papers());
+        if ($paperIds === []) {
+            return [];
+        }
+
+        return array_map('intval', array_column(Db::all(
+            'SELECT id FROM paper_authors WHERE author_id IN (' . implode(',', array_fill(0, count($paperIds), '?')) . ')',
+            $paperIds
+        ), 'id'));
+    }
+
     /** @return array<int,int> */
     public static function committeeIds(): array
     {

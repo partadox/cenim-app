@@ -57,10 +57,7 @@ final class CertificateHtml
 
         $background = self::fileUrl((int) ($template['background_file_id'] ?? 0));
         $signature  = self::fileUrl((int) ($template['signature_file_id'] ?? 0));
-        $signatory  = [
-            SettingRepo::getString($editionId, 'signatory_name'),
-            SettingRepo::getString($editionId, 'signatory_title'),
-        ];
+        $signatory  = array_values(SettingRepo::chair($editionId));
 
         $items = [];
         foreach (CertificateTemplateRepo::fields($template) as $field) {

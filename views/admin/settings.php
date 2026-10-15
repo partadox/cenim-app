@@ -119,7 +119,7 @@ use Cenim\Core\Csrf;
             <div class="cn-card">
                 <div class="cn-card-head">
                     <i class="fa-solid fa-address-book text-muted"></i>
-                    <h2>Contact &amp; signatory</h2>
+                    <h2>Contact</h2>
                 </div>
                 <div class="cn-card-body">
                     <div class="row g-2">
@@ -134,18 +134,58 @@ use Cenim\Core\Csrf;
                             <input type="text" class="form-control form-control-sm" id="contact_whatsapp" name="contact_whatsapp"
                                    value="<?= e((string) $values['contact_whatsapp']) ?>" maxlength="40">
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cn-card mt-3" id="chair">
+                <div class="cn-card-head">
+                    <i class="fa-solid fa-user-tie text-muted"></i>
+                    <h2>Conference chair</h2>
+                </div>
+                <div class="cn-card-body">
+                    <div class="row g-2">
                         <div class="col-md-6">
-                            <label class="form-label" for="signatory_name" style="font-size:12.5px">Signatory name</label>
+                            <label class="form-label" for="signatory_name" style="font-size:12.5px">Name</label>
                             <input type="text" class="form-control form-control-sm" id="signatory_name" name="signatory_name"
-                                   value="<?= e((string) $values['signatory_name']) ?>" maxlength="190">
-                            <div class="form-text" style="font-size:11.5px">Printed on receipts and certificates.</div>
+                                   value="<?= e((string) $values['signatory_name']) ?>" placeholder="e.g. Dr. Ahmad Zaini" maxlength="190">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label" for="signatory_title" style="font-size:12.5px">Signatory title</label>
+                            <label class="form-label" for="signatory_title" style="font-size:12.5px">Position</label>
                             <input type="text" class="form-control form-control-sm" id="signatory_title" name="signatory_title"
-                                   value="<?= e((string) $values['signatory_title']) ?>" maxlength="190">
+                                   value="<?= e((string) $values['signatory_title']) ?>" placeholder="General Chair {edition_name}" maxlength="190">
                         </div>
                     </div>
+                    <div class="form-text mb-3" style="font-size:11.5px">
+                        One place for the chair: signs the LoA, fills the signatory on certificates, and closes every email.
+                        Token: <code>{edition_name}</code>.
+                    </div>
+
+                    <?php $role = 'chair'; $file = $signatures['chair']; $docs = 'the LoA'; require __DIR__ . '/_signature_upload.php'; ?>
+                </div>
+            </div>
+
+            <div class="cn-card mt-3" id="treasurer">
+                <div class="cn-card-head">
+                    <i class="fa-solid fa-coins text-muted"></i>
+                    <h2>Treasurer</h2>
+                </div>
+                <div class="cn-card-body">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label" for="treasurer_name" style="font-size:12.5px">Name</label>
+                            <input type="text" class="form-control form-control-sm" id="treasurer_name" name="treasurer_name"
+                                   value="<?= e((string) $values['treasurer_name']) ?>" maxlength="190">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="treasurer_title" style="font-size:12.5px">Position</label>
+                            <input type="text" class="form-control form-control-sm" id="treasurer_title" name="treasurer_title"
+                                   value="<?= e((string) $values['treasurer_title']) ?>" placeholder="Treasurer {edition_name}" maxlength="190">
+                        </div>
+                    </div>
+                    <div class="form-text mb-3" style="font-size:11.5px">Signs invoices and receipts. Token: <code>{edition_name}</code>.</div>
+
+                    <?php $role = 'treasurer'; $file = $signatures['treasurer']; $docs = 'invoices and receipts'; require __DIR__ . '/_signature_upload.php'; ?>
                 </div>
             </div>
         </div>
@@ -239,17 +279,8 @@ use Cenim\Core\Csrf;
                     </div>
 
                     <div class="mt-3 mb-1" style="font-size:12.5px;font-weight:600">Closing (Regards) of every email</div>
+                    <div class="form-text mt-0 mb-2" style="font-size:11.5px">Position and name come from <a href="#chair">Conference chair</a>.</div>
                     <div class="row g-2">
-                        <div class="col-md-6">
-                            <label class="form-label" for="mail_signature_role" style="font-size:12px">Position</label>
-                            <input type="text" class="form-control form-control-sm" id="mail_signature_role" name="mail_signature_role"
-                                   value="<?= e((string) $values['mail_signature_role']) ?>" placeholder="General Chair {edition_name}" maxlength="190">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label" for="mail_signature_name" style="font-size:12px">Name</label>
-                            <input type="text" class="form-control form-control-sm" id="mail_signature_name" name="mail_signature_name"
-                                   value="<?= e((string) $values['mail_signature_name']) ?>" maxlength="190">
-                        </div>
                         <div class="col-md-6">
                             <label class="form-label" for="mail_signature_email" style="font-size:12px">Email</label>
                             <input type="email" class="form-control form-control-sm" id="mail_signature_email" name="mail_signature_email"
@@ -280,11 +311,17 @@ use Cenim\Core\Csrf;
                         Empty = <code>CENIM26/LOA/0001</code>. A number never changes once given.
                     </div>
 
+                    <label class="form-label" for="loa_city" style="font-size:12.5px">Issuing city</label>
+                    <input type="text" class="form-control form-control-sm" id="loa_city" name="loa_city" maxlength="120"
+                           value="<?= e((string) $values['loa_city']) ?>" placeholder="<?= e(Cenim\Domain\LoaRepo::DEFAULT_CITY) ?>">
+                    <div class="form-text mb-3" style="font-size:11.5px">
+                        Printed before the date at the top right, e.g. <i><?= e(((string) $values['loa_city'] ?: Cenim\Domain\LoaRepo::DEFAULT_CITY) . ', ' . fmt_date(now())) ?></i>.
+                    </div>
+
                     <label class="form-label" for="loa_body" style="font-size:12.5px">Letter text</label>
-                    <textarea class="form-control form-control-sm" id="loa_body" name="loa_body" rows="7"
-                              placeholder="<?= e(Cenim\Domain\LoaRepo::DEFAULT_BODY) ?>"><?= e((string) $values['loa_body']) ?></textarea>
+                    <textarea class="form-control form-control-sm" id="loa_body" name="loa_body" rows="9"><?= e((string) $values['loa_body']) ?></textarea>
                     <div class="form-text" style="font-size:11.5px">
-                        Empty = the default text shown as placeholder. Tokens:
+                        Edit freely, including the conference location. Clear it to go back to the default text. Tokens:
                         <code>{paper_id}</code> <code>{paper_title}</code> <code>{authors}</code> <code>{track}</code>
                         <code>{edition_name}</code> <code>{conference_dates}</code>.
                     </div>
@@ -302,6 +339,20 @@ use Cenim\Core\Csrf;
         </a>
     </div>
 </form>
+
+<?php foreach (['chair' => 'the LoA', 'treasurer' => 'invoices and receipts'] as $signRole => $signDocs): ?>
+    <form method="post" enctype="multipart/form-data" id="signature-form-<?= e($signRole) ?>" class="d-none">
+        <?= Csrf::field() ?>
+        <input type="hidden" name="action" value="signature_upload">
+        <input type="hidden" name="role" value="<?= e($signRole) ?>">
+    </form>
+    <form method="post" id="signature-remove-<?= e($signRole) ?>" class="d-none"
+          onsubmit="return confirm(<?= e(json_encode('Remove the ' . $signRole . ' signature & stamp from ' . $signDocs . '?')) ?>)">
+        <?= Csrf::field() ?>
+        <input type="hidden" name="action" value="signature_remove">
+        <input type="hidden" name="role" value="<?= e($signRole) ?>">
+    </form>
+<?php endforeach; ?>
 
 <div class="cn-card mt-3" id="user-guide">
     <div class="cn-card-head">

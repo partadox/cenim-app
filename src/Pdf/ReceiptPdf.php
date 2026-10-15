@@ -6,8 +6,8 @@ namespace Cenim\Pdf;
 
 use Cenim\Core\Db;
 use Cenim\Domain\ReceiptRepo;
+use Cenim\Domain\BrandingRepo;
 use Cenim\Domain\SettingRepo;
-use Cenim\Storage\StorageManager;
 
 /**
  * PDF receipt (kuitansi resmi) untuk pembayaran yang sudah dikonfirmasi.
@@ -103,36 +103,9 @@ final class ReceiptPdf extends PdfBase
         $pdf->noteBlock('Notes', SettingRepo::getString($editionId, 'receipt_note'));
 
         // ── Tanda tangan ────────────────────────────────────────────────────
-        $pdf->signatureBlock(
-            SettingRepo::getString($editionId, 'signatory_name'),
-            SettingRepo::getString($editionId, 'signatory_title'),
-            self::signaturePath($editionId)
-        );
+        $treasurer = SettingRepo::treasurer($editionId);
+        $pdf->signatureBlock($treasurer['name'], $treasurer['title'], BrandingRepo::signaturePath($editionId, 'treasurer'));
 
         return (string) $pdf->Output('S');
-    }
-
-    /** Gambar tanda tangan dari tabel media (kind = signature), bila ada. */
-    public static function signaturePath(int $editionId): ?string
-    {
-        if (!Db::tableExists('media')) {
-            return null;
-        }
-
-        $row = Db::one(
-            "SELECT f.* FROM media m
-             JOIN files f ON f.id = m.file_id
-             WHERE m.edition_id = ? AND m.kind = 'signature' AND f.deleted_at IS NULL
-             ORDER BY m.id DESC LIMIT 1",
-            [$editionId]
-        );
-
-        if ($row === null) {
-            return null;
-        }
-
-        $path = StorageManager::forFile($row)->localPath($row);
-
-        return $path !== null && is_file($path) ? $path : null;
     }
 }

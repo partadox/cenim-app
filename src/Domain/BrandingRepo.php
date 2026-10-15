@@ -71,7 +71,10 @@ final class BrandingRepo
             storage_path('generated/logo/' . $year . '/logo-cenim-' . $year . '-512.png'),
             storage_path('generated/logo/' . $year . '/logo-cenim-' . $year . '-1024.png'),
             storage_path('cache/s3/public/theme/image/logo-cenim-' . $year . '.png'),
+            // Aset tema yang disalin ke disk (server tanpa akses object storage).
+            CENIM_ROOT . '/assets/theme/image/logo-cenim-' . $year . '.png',
             storage_path('cache/s3/public/theme/image/logo-cenim-2026.png'),
+            CENIM_ROOT . '/assets/theme/image/logo-cenim-2026.png',
             CENIM_ROOT . '/reference/logo-base.png',
         ] as $path) {
             if (is_file($path)) {
@@ -290,6 +293,103 @@ final class BrandingRepo
      *
      * @throws InvalidArgumentException
      */
+    /**
+     * Penanda tangan dokumen: chair (LoA) dan treasurer (invoice & receipt).
+     * Masing-masing satu gambar tanda tangan + stempel, disimpan sebagai media.
+     *
+     * @var array<string,array{kind:string,purpose:string,label:string}>
+     */
+    public const SIGNERS = [
+        'chair'     => ['kind' => 'signature',           'purpose' => 'chair_signature',     'label' => 'Chair signature & stamp'],
+        'treasurer' => ['kind' => 'signature_treasurer', 'purpose' => 'treasurer_signature', 'label' => 'Treasurer signature & stamp'],
+    ];
+
+    /**
+     * Pasang gambar tanda tangan + stempel (PNG transparan dianjurkan).
+     *
+     * @throws InvalidArgumentException
+     */
+    public static function setSignature(int $editionId, int $year, string $role, array $upload): int
+    {
+        $signer = self::SIGNERS[$role] ?? throw new InvalidArgumentException('Unknown signer.');
+
+        if ((int) ($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            throw new InvalidArgumentException('Please choose an image file.');
+        }
+
+        $info = @getimagesize((string) $upload['tmp_name']);
+        if ($info === false || !in_array($info[2], [IMAGETYPE_PNG, IMAGETYPE_JPEG], true)) {
+            throw new InvalidArgumentException('The signature must be a PNG or JPG image.');
+        }
+        if ((int) $upload['size'] > upload_max_bytes(self::LOGO_MAX_BYTES)) {
+            throw new InvalidArgumentException('The signature must not exceed ' . upload_max_label(self::LOGO_MAX_BYTES) . '.');
+        }
+        if (min($info[0], $info[1]) < 150) {
+            throw new InvalidArgumentException(sprintf('The image is %d×%d px; the shortest side must be at least 150 px.', $info[0], $info[1]));
+        }
+
+        $fileId = FileRepo::replace($upload, $signer['purpose'], 'edition', $editionId, $editionId, $year);
+
+        Db::delete('media', 'edition_id = ? AND kind = ?', [$editionId, $signer['kind']]);
+        Db::insert('media', [
+            'edition_id' => $editionId,
+            'kind'       => $signer['kind'],
+            'file_id'    => $fileId,
+            'label'      => $signer['label'],
+            'created_at' => now(),
+        ]);
+
+        return $fileId;
+    }
+
+    public static function clearSignature(int $editionId, string $role): void
+    {
+        $kind = self::SIGNERS[$role]['kind'] ?? null;
+        if ($kind === null) {
+            return;
+        }
+
+        foreach (Db::all('SELECT file_id FROM media WHERE edition_id = ? AND kind = ?', [$editionId, $kind]) as $row) {
+            if ($row['file_id'] !== null) {
+                FileRepo::softDelete((int) $row['file_id']);
+            }
+        }
+        Db::delete('media', 'edition_id = ? AND kind = ?', [$editionId, $kind]);
+    }
+
+    /** Baris files tanda tangan yang terpasang untuk peran ini, atau null. */
+    public static function signatureFile(int $editionId, string $role): ?array
+    {
+        $kind = self::SIGNERS[$role]['kind'] ?? null;
+        if ($kind === null || !Db::tableExists('media')) {
+            return null;
+        }
+
+        return Db::one(
+            'SELECT f.* FROM media m JOIN files f ON f.id = m.file_id
+             WHERE m.edition_id = ? AND m.kind = ? AND f.deleted_at IS NULL
+             ORDER BY m.id DESC LIMIT 1',
+            [$editionId, $kind]
+        );
+    }
+
+    /** Path lokal gambar tanda tangan untuk PDF, atau null. */
+    public static function signaturePath(int $editionId, string $role): ?string
+    {
+        $row = self::signatureFile($editionId, $role);
+        if ($row === null) {
+            return null;
+        }
+
+        try {
+            $path = StorageManager::forFile($row)->localPath($row);
+        } catch (\Throwable) {
+            return null; // object storage tidak bisa dihubungi → PDF tanpa gambar
+        }
+
+        return $path !== null && is_file($path) ? $path : null;
+    }
+
     private static function checkImage(array $upload, int $minPx, int $maxBytes): void
     {
         if ((int) ($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {

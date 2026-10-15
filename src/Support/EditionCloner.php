@@ -43,7 +43,7 @@ final class EditionCloner
     /** Setting yang disalin apa adanya, tanpa penggantian tahun (rekening, kontak, nama orang). */
     private const VERBATIM_SETTINGS = [
         'bank_accounts', 'contact_email', 'contact_whatsapp', 'signatory_name',
-        'mail_reply_to', 'mail_signature_name', 'mail_signature_email', 'mail_signature_web',
+        'mail_reply_to', 'mail_signature_name', 'mail_signature_email', 'mail_signature_web', 'loa_city', 'treasurer_name',
     ];
 
     private array $replace = [];

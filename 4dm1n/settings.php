@@ -49,6 +49,32 @@ if (is_post() && in_array(input('action'), ['guide_upload', 'guide_remove'], tru
     Response::redirect(admin_url('settings.php') . '#user-guide');
 }
 
+if (is_post() && in_array(input('action'), ['signature_upload', 'signature_remove'], true)) {
+    Csrf::verify();
+
+    $role  = (string) input('role', 'chair');
+    $label = $role === 'treasurer' ? 'Treasurer' : 'Chair';
+    $docs  = $role === 'treasurer' ? 'invoices and receipts' : 'the LoA';
+
+    if (!isset(Cenim\Domain\BrandingRepo::SIGNERS[$role])) {
+        Session::flash('error', 'Unknown signer.');
+    } elseif (input('action') === 'signature_remove') {
+        Cenim\Domain\BrandingRepo::clearSignature($editionId, $role);
+        Audit::log('settings.signature_removed', ['meta' => ['role' => $role]]);
+        Session::flash('success', $label . ' signature & stamp removed from ' . $docs . '.');
+    } else {
+        try {
+            $fileId = Cenim\Domain\BrandingRepo::setSignature($editionId, (int) ($edition['year'] ?? date('Y')), $role, $_FILES['signature'] ?? []);
+            Audit::log('settings.signature', ['meta' => ['role' => $role, 'file_id' => $fileId]]);
+            Session::flash('success', $label . ' signature & stamp uploaded — ' . $docs . ' now show it.');
+        } catch (InvalidArgumentException $e) {
+            Session::flash('error', $label . ' signature: ' . $e->getMessage());
+        }
+    }
+
+    Response::redirect(admin_url('settings.php') . '#' . ($role === 'treasurer' ? 'treasurer' : 'chair'));
+}
+
 if (is_post()) {
     Csrf::verify();
 
@@ -73,7 +99,7 @@ if (is_post()) {
     SettingRepo::set($editionId, 'shirt_sizes', $sizes !== [] ? $sizes : Cenim\Domain\RegistrationRepo::DEFAULT_SHIRT_SIZES);
 
     // ── Kontak & tanda tangan ───────────────────────────────────────────────
-    foreach (['contact_email', 'contact_whatsapp', 'signatory_name', 'signatory_title'] as $key) {
+    foreach (['contact_email', 'contact_whatsapp', 'signatory_name', 'signatory_title', 'treasurer_name', 'treasurer_title'] as $key) {
         SettingRepo::set($editionId, $key, trim((string) input($key, '')));
     }
 
@@ -90,7 +116,10 @@ if (is_post()) {
     }
 
     SettingRepo::set($editionId, 'loa_number_base', mb_substr(trim((string) input('loa_number_base', '')), 0, 120));
-    SettingRepo::set($editionId, 'loa_body', trim((string) input('loa_body', '')));
+    SettingRepo::set($editionId, 'loa_city', mb_substr(trim((string) input('loa_city', '')), 0, 120));
+    // Teks yang sama persis dengan bawaan disimpan kosong, jadi tetap ikut bawaan.
+    $loaBody = trim(str_replace("\r\n", "\n", (string) input('loa_body', '')));
+    SettingRepo::set($editionId, 'loa_body', $loaBody === Cenim\Domain\LoaRepo::DEFAULT_BODY ? '' : $loaBody);
 
     // ── Rekening bank ───────────────────────────────────────────────────────
     $accounts = [];
@@ -131,6 +160,10 @@ foreach (SettingRepo::getArray($editionId, 'bank_accounts', []) as $account) {
 
 View::render('admin/settings', [
     'guide'    => Cenim\Domain\FileRepo::find((int) SettingRepo::get($editionId, 'user_guide_file_id', 0)),
+    'signatures' => [
+        'chair'     => Cenim\Domain\BrandingRepo::signatureFile($editionId, 'chair'),
+        'treasurer' => Cenim\Domain\BrandingRepo::signatureFile($editionId, 'treasurer'),
+    ],
     'title'    => 'Settings',
     'subtitle' => $edition['name'] ?? '',
     'active'   => 'settings',
@@ -148,8 +181,14 @@ View::render('admin/settings', [
         'invoice_due_days'    => (int) SettingRepo::get($editionId, 'invoice_due_days', 14),
         'contact_email'       => SettingRepo::getString($editionId, 'contact_email'),
         'contact_whatsapp'    => SettingRepo::getString($editionId, 'contact_whatsapp'),
-        'signatory_name'      => SettingRepo::getString($editionId, 'signatory_name'),
-        'signatory_title'     => SettingRepo::getString($editionId, 'signatory_title'),
+        // Chair: nilai lama dari Settings → Email ditampilkan bila belum diisi.
+        'signatory_name'      => SettingRepo::getString($editionId, 'signatory_name')
+            ?: SettingRepo::getString($editionId, 'mail_signature_name'),
+        'signatory_title'     => SettingRepo::getString($editionId, 'signatory_title')
+            ?: SettingRepo::getString($editionId, 'mail_signature_role', SettingRepo::DEFAULT_CHAIR_TITLE),
+        'treasurer_name'      => SettingRepo::getString($editionId, 'treasurer_name'),
+        'treasurer_title'     => SettingRepo::getString($editionId, 'treasurer_title', SettingRepo::DEFAULT_TREASURER_TITLE),
+        'loa_city'            => SettingRepo::getString($editionId, 'loa_city', Cenim\Domain\LoaRepo::DEFAULT_CITY),
         'invoice_note'        => SettingRepo::getString($editionId, 'invoice_note'),
         'receipt_note'        => SettingRepo::getString($editionId, 'receipt_note'),
         'loa_number_base'     => SettingRepo::getString($editionId, 'loa_number_base'),
@@ -160,6 +199,6 @@ View::render('admin/settings', [
             array_keys(Cenim\Core\Mailer::SETTINGS)
         )
     ) + [
-        'loa_body'            => SettingRepo::getString($editionId, 'loa_body'),
+        'loa_body'            => SettingRepo::getString($editionId, 'loa_body') ?: Cenim\Domain\LoaRepo::DEFAULT_BODY,
     ],
 ], 'admin');

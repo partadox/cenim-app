@@ -75,8 +75,6 @@ final class Mailer
     public const SETTINGS = [
         'mail_sender_name'     => '{edition_name}',
         'mail_reply_to'        => '',            // kosong = Secretariat email (Settings)
-        'mail_signature_role'  => 'General Chair {edition_name}',
-        'mail_signature_name'  => 'Ahmad Zaini',
         'mail_signature_email' => '',            // kosong = Secretariat email (Settings)
         'mail_signature_web'   => '',            // kosong = alamat situs (APP_URL + APP_BASE)
     ];
@@ -116,11 +114,19 @@ final class Mailer
 
         return array_values(array_filter([
             'Regards,',
-            self::setting('mail_signature_role'),
-            self::setting('mail_signature_name'),
+            ...array_values(self::chair()),
             ($sigEmail = self::setting('mail_signature_email') ?: self::contactEmail()) !== '' ? 'Email: ' . $sigEmail : '',
             'Web: ' . ($web !== '' ? $web : rtrim(abs_url(''), '/') . '/'),
         ], static fn (string $line): bool => $line !== ''));
+    }
+
+    /** Jabatan & nama chair (Settings → Conference chair) untuk penutup email. @return array{title:string,name:string} */
+    private static function chair(): array
+    {
+        $editionId = EditionRepo::contextId();
+        $chair     = $editionId > 0 ? SettingRepo::chair($editionId) : ['name' => '', 'title' => ''];
+
+        return ['title' => $chair['title'], 'name' => $chair['name']];
     }
 
     /** Email sekretariat (Settings → Secretariat email) — satu sumber kontak. */

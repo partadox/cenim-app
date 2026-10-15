@@ -476,13 +476,18 @@ class PdfBase extends \tFPDF
     }
 
     /** Blok tanda tangan di kanan bawah. */
-    protected function signatureBlock(string $name, string $title, ?string $imagePath = null): void
+    protected function signatureBlock(string $name, string $title, ?string $imagePath = null, string $caption = 'Conference secretariat'): void
     {
         if (trim($name) === '' && $imagePath === null) {
             return;
         }
 
         $this->Ln(4);
+
+        // Blok (keterangan + gambar + nama + jabatan) jangan sampai terpotong ke halaman berikut.
+        if ($this->GetY() + 52 > $this->GetPageHeight() - $this->bMargin) {
+            $this->AddPage();
+        }
 
         $width = 70;
         $x     = $this->GetPageWidth() - $this->rMargin - $width;
@@ -491,14 +496,19 @@ class PdfBase extends \tFPDF
         $this->SetXY($x, $y);
         $this->SetFont('dejavu', '', 9);
         $this->SetTextColor(...self::GREY);
-        $this->Cell($width, 5, 'Conference secretariat', 0, 2, 'C');
+        $this->Cell($width, 5, $caption, 0, 2, 'C');
 
         if ($imagePath !== null && is_file($imagePath)) {
-            $size   = @getimagesize($imagePath);
-            $imgW   = 42.0;
-            $imgH   = ($size !== false && $size[0] > 0) ? $imgW * ($size[1] / $size[0]) : 16.0;
-            $imgH   = min($imgH, 22.0);
-            $this->Image($imagePath, $x + ($width - $imgW) / 2, $this->GetY() + 1, $imgW);
+            // Tanda tangan + stempel: muat dalam kotak 56×30 mm, rasio dijaga.
+            $size  = @getimagesize($imagePath);
+            $ratio = ($size !== false && $size[0] > 0) ? $size[1] / $size[0] : 0.4;
+            $imgW  = 56.0;
+            $imgH  = $imgW * $ratio;
+            if ($imgH > 30.0) {
+                $imgH = 30.0;
+                $imgW = $imgH / $ratio;
+            }
+            $this->Image($imagePath, $x + ($width - $imgW) / 2, $this->GetY() + 1, $imgW, $imgH);
             $this->SetY($this->GetY() + $imgH + 2);
         } else {
             $this->Ln(16);

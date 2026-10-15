@@ -22,11 +22,15 @@ final class Numbering
     public static function next(int $editionId, string $key): int
     {
         return (int) Db::immediateTransaction(static function () use ($editionId, $key): int {
+            // Tanpa upsert (ON CONFLICT butuh SQLite 3.24; server bisa lebih lama).
             Db::run(
-                'INSERT INTO number_sequences (edition_id, "key", current, updated_at)
-                 VALUES (:edition_id, :key, 1, :updated_at)
-                 ON CONFLICT (edition_id, "key")
-                 DO UPDATE SET current = current + 1, updated_at = :updated_at',
+                'INSERT OR IGNORE INTO number_sequences (edition_id, "key", current, updated_at)
+                 VALUES (:edition_id, :key, 0, :updated_at)',
+                ['edition_id' => $editionId, 'key' => $key, 'updated_at' => now()]
+            );
+            Db::run(
+                'UPDATE number_sequences SET current = current + 1, updated_at = :updated_at
+                 WHERE edition_id = :edition_id AND "key" = :key',
                 ['edition_id' => $editionId, 'key' => $key, 'updated_at' => now()]
             );
 

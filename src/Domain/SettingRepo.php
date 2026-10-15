@@ -74,17 +74,26 @@ final class SettingRepo
     {
         $json = json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
-        Db::run(
-            'INSERT INTO settings (edition_id, "key", value_json, updated_at)
-             VALUES (:edition_id, :key, :value_json, :updated_at)
-             ON CONFLICT (edition_id, "key") DO UPDATE SET value_json = :value_json, updated_at = :updated_at',
-            [
-                'edition_id' => $editionId,
-                'key'        => $key,
-                'value_json' => $json,
-                'updated_at' => now(),
-            ]
-        );
+        $params = [
+            'edition_id' => $editionId,
+            'key'        => $key,
+            'value_json' => $json,
+            'updated_at' => now(),
+        ];
+
+        // Tanpa upsert (ON CONFLICT butuh SQLite 3.24; server bisa lebih lama).
+        Db::transaction(static function () use ($params): void {
+            Db::run(
+                'INSERT OR IGNORE INTO settings (edition_id, "key", value_json, updated_at)
+                 VALUES (:edition_id, :key, :value_json, :updated_at)',
+                $params
+            );
+            Db::run(
+                'UPDATE settings SET value_json = :value_json, updated_at = :updated_at
+                 WHERE edition_id = :edition_id AND "key" = :key',
+                $params
+            );
+        });
 
         unset(self::$cache[$editionId]);
     }

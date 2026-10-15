@@ -206,21 +206,28 @@ final class ContentRepo
     {
         $json = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
-        Db::run(
-            'INSERT INTO content_blocks (edition_id, page, section_key, sort, type, data_json, is_visible, updated_at, updated_by)
-             VALUES (:edition_id, :page, :section_key, 0, :type, :data_json, 1, :updated_at, :updated_by)
-             ON CONFLICT (edition_id, page, section_key)
-             DO UPDATE SET data_json = :data_json, updated_at = :updated_at, updated_by = :updated_by',
-            [
-                'edition_id'  => $editionId,
-                'page'        => $page,
-                'section_key' => $key,
-                'type'        => isset($data['items']) ? 'list' : 'text',
-                'data_json'   => $json,
-                'updated_at'  => now(),
-                'updated_by'  => $actor,
-            ]
-        );
+        $params = [
+            'edition_id'  => $editionId,
+            'page'        => $page,
+            'section_key' => $key,
+            'data_json'   => $json,
+            'updated_at'  => now(),
+            'updated_by'  => $actor,
+        ];
+
+        // Tanpa upsert (ON CONFLICT butuh SQLite 3.24; server bisa lebih lama).
+        Db::transaction(static function () use ($params, $data): void {
+            Db::run(
+                'INSERT OR IGNORE INTO content_blocks (edition_id, page, section_key, sort, type, data_json, is_visible, updated_at, updated_by)
+                 VALUES (:edition_id, :page, :section_key, 0, :type, :data_json, 1, :updated_at, :updated_by)',
+                $params + ['type' => isset($data['items']) ? 'list' : 'text']
+            );
+            Db::run(
+                'UPDATE content_blocks SET data_json = :data_json, updated_at = :updated_at, updated_by = :updated_by
+                 WHERE edition_id = :edition_id AND page = :page AND section_key = :section_key',
+                $params
+            );
+        });
 
         unset(self::$cache[$editionId . ':' . $page]);
     }

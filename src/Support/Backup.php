@@ -20,9 +20,11 @@ use RuntimeException;
  * `generated/` sengaja TIDAK di-backup: invoice, receipt, sertifikat, logo, dan
  * kop semuanya bisa dibuat ulang dari database.
  *
- * Snapshot database memakai `VACUUM INTO` supaya konsisten walau ada penulis
- * lain (mode WAL) — menyalin file .sqlite mentah saat ada transaksi berjalan
- * bisa menghasilkan arsip yang rusak.
+ * Snapshot database memakai online backup API SQLite (SQLite3::backup) atau
+ * `VACUUM INTO` supaya konsisten walau ada penulis lain (mode WAL) — menyalin
+ * file .sqlite mentah saat ada transaksi berjalan bisa menghasilkan arsip
+ * yang rusak. VACUUM INTO baru ada di SQLite 3.27; backup API ada di semua
+ * versi, jadi itu yang diutamakan.
  */
 final class Backup
 {
@@ -92,8 +94,23 @@ final class Backup
             @unlink($plain);
         }
 
-        // VACUUM INTO menolak menulis ke file yang sudah ada.
-        Db::pdo()->exec("VACUUM INTO " . Db::pdo()->quote($plain));
+        if (class_exists(\SQLite3::class) && method_exists(\SQLite3::class, 'backup')) {
+            $source = new \SQLite3(Db::path(), SQLITE3_OPEN_READONLY);
+            $source->busyTimeout(5000);
+            $copy   = new \SQLite3($plain);
+
+            try {
+                if (!$source->backup($copy)) {
+                    throw new RuntimeException('Snapshot database gagal: ' . $source->lastErrorMsg());
+                }
+            } finally {
+                $copy->close();
+                $source->close();
+            }
+        } else {
+            // VACUUM INTO menolak menulis ke file yang sudah ada.
+            Db::pdo()->exec("VACUUM INTO " . Db::pdo()->quote($plain));
+        }
 
         if (!is_file($plain)) {
             throw new RuntimeException('Snapshot database gagal dibuat: ' . $plain);

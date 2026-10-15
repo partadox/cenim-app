@@ -145,6 +145,15 @@ final class HealthChecks
         }
         $checks['Database'] = ['ok' => $dbOk, 'detail' => Db::path() . ' — ' . $dbDetail];
 
+        // Aplikasi sengaja tidak memakai fitur SQLite baru (upsert, VACUUM INTO)
+        // karena server hosting bisa memakai versi lama.
+        try {
+            $sqliteVersion = (string) Db::value('SELECT sqlite_version()');
+        } catch (Throwable) {
+            $sqliteVersion = 'unknown';
+        }
+        $checks['SQLite version'] = ['ok' => true, 'detail' => $sqliteVersion];
+
         $integrity = 'tidak diperiksa (db error)';
         if ($dbOk) {
             try {

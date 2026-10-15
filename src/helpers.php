@@ -229,6 +229,33 @@ function ini_bytes(string $key): int
 }
 
 /**
+ * Atribut form generator logo/kop untuk render PNG di browser (server tanpa
+ * gd). $targets kosong → string kosong, form berjalan biasa (PNG dibuat gd).
+ *
+ * @param list<array<string,mixed>> $targets
+ */
+function raster_form_attrs(string $svgUrl, array $targets): string
+{
+    if ($targets === []) {
+        return '';
+    }
+
+    return ' data-raster-svg="' . e($svgUrl) . '" data-raster-targets="' . e((string) json_encode($targets)) . '"';
+}
+
+/**
+ * Ekstensi PHP tersedia? Hosting EasyApache sering tanpa curl/gd/zip/intl —
+ * aplikasi punya jalur pengganti untuk masing-masing. SIMULATE_MISSING_EXT
+ * (mis. "curl,gd,zip,intl") di .env mensimulasikan server seperti itu saat uji.
+ */
+function ext_available(string $extension): bool
+{
+    $missing = array_map('trim', explode(',', strtolower((string) env('SIMULATE_MISSING_EXT', ''))));
+
+    return extension_loaded($extension) && !in_array(strtolower($extension), $missing, true);
+}
+
+/**
  * Batas ukuran satu berkas yang benar-benar bisa diterima: nilai terkecil dari
  * batas aplikasi (config upload.max_bytes), batas fitur ($cap, mis. logo 2 MB),
  * dan batas PHP di server (upload_max_filesize, post_max_size). Server yang

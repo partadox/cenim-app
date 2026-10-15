@@ -78,6 +78,7 @@ try {
         case 'check':
             echo 'Endpoint : ', env('TANDIKAT_ENDPOINT'), PHP_EOL;
             echo 'Bucket   : ', $s3->bucket(), PHP_EOL;
+            echo 'HTTP     : ', Cenim\Support\Http::transport(), PHP_EOL;
 
             $probe = '_probe/check-' . bin2hex(random_bytes(4)) . '.txt';
             $s3->putString($probe, 'ok', 'text/plain');
@@ -89,10 +90,7 @@ try {
 
             $sample = $theme[0]['key'] ?? null;
             if ($sample !== null) {
-                $ch = curl_init($s3->publicUrl($sample));
-                curl_setopt_array($ch, [CURLOPT_NOBODY => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10]);
-                curl_exec($ch);
-                $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+                $code = Cenim\Support\Http::request('GET', $s3->publicUrl($sample), ['timeout' => 10])['status'];
                 echo 'Publik   : ', $code === 200
                     ? "BISA dibaca anonim — boleh isi TANDIKAT_PUBLIC_URL agar aset langsung dari object storage\n"
                     : "privat (HTTP {$code}) — aset disajikan lewat public/asset.php (normal)\n";

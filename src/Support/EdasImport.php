@@ -6,7 +6,6 @@ namespace Cenim\Support;
 
 use Cenim\Domain\AuthorRepo;
 use Cenim\Domain\PaperAuthorRepo;
-use Locale;
 
 /**
  * Import ekspor "papers" dari EDAS (Conference → Papers → Download → CSV).
@@ -306,14 +305,8 @@ final class EdasImport
     public static function country(string $value): string
     {
         $value = trim($value);
-        if (preg_match('/^[A-Za-z]{2}$/', $value) === 1 && class_exists(Locale::class)) {
-            $name = Locale::getDisplayRegion('-' . strtoupper($value), 'en');
-            if ($name !== '' && strtoupper($name) !== strtoupper($value)) {
-                return $name;
-            }
-        }
 
-        return $value;
+        return Countries::name($value) ?? $value;
     }
 
     private static function isBlank(string $value): bool

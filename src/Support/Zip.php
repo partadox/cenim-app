@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Cenim\Support;
 
 use RuntimeException;
-use ZipArchive;
 
 /**
- * Pembungkus ZipArchive untuk ekspor massal (sertifikat per jenis).
+ * Arsip ZIP untuk ekspor massal (sertifikat per jenis). Ditulis dengan
+ * ZipWriter (PHP murni), jadi tidak butuh ekstensi zip.
  */
 final class Zip
 {
@@ -19,10 +19,6 @@ final class Zip
      */
     public static function create(string $zipPath, array $files): string
     {
-        if (!class_exists(ZipArchive::class)) {
-            throw new RuntimeException('Ekstensi zip PHP tidak tersedia di server ini.');
-        }
-
         if (!ensure_dir(dirname($zipPath))) {
             throw new RuntimeException('Folder ZIP tidak writable: ' . dirname($zipPath));
         }
@@ -31,28 +27,21 @@ final class Zip
             @unlink($zipPath);
         }
 
-        $zip = new ZipArchive();
+        $zip = new ZipWriter($zipPath);
 
-        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            throw new RuntimeException('Tidak bisa membuat arsip ZIP.');
-        }
-
-        $added = 0;
         foreach ($files as $name => $path) {
-            if (!is_file($path)) {
-                continue;
+            if (is_file($path)) {
+                $zip->addFile($path, self::safeEntryName((string) $name));
             }
-            $zip->addFile($path, self::safeEntryName((string) $name));
-            $added++;
         }
+
+        $added = $zip->count();
+        $zip->close();
 
         if ($added === 0) {
-            $zip->close();
             @unlink($zipPath);
             throw new RuntimeException('Tidak ada file yang bisa dimasukkan ke ZIP.');
         }
-
-        $zip->close();
 
         return $zipPath;
     }

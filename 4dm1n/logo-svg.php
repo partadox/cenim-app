@@ -1,6 +1,7 @@
 <?php
 /**
  * Unduh logo sebagai SVG: ?year=2027 (font ditanam agar tampil sama di mana pun)
+ * &inline=1 untuk ditampilkan/dirender di browser, bukan diunduh.
  */
 
 declare(strict_types=1);
@@ -23,7 +24,10 @@ try {
 
 if (!headers_sent()) {
     header('Content-Type: image/svg+xml');
-    header('Content-Disposition: attachment; filename="logo-cenim-' . $year . '.svg"');
+    header('Cache-Control: no-store');
+    if (input('inline') === null) {
+        header('Content-Disposition: attachment; filename="logo-cenim-' . $year . '.svg"');
+    }
 }
 
 echo $svg;

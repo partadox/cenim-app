@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cenim\Storage;
 
+use Cenim\Support\Http;
 use RuntimeException;
 
 /**
@@ -227,67 +228,22 @@ final class S3Client
             $signedHeaders,
             hash_hmac('sha256', $toSign, $kSigning)
         );
-        unset($headers['host']); // dikirim curl sendiri
+        unset($headers['host']); // dikirim klien HTTP sendiri
 
         $url = $this->endpoint . $path . ($canonicalQuery !== '' ? '?' . $canonicalQuery : '');
-        $ch  = curl_init($url);
 
-        $respHeaders = [];
-        $opts = [
-            CURLOPT_CUSTOMREQUEST  => $method,
-            CURLOPT_HTTPHEADER     => array_map(static fn ($k, $v) => $k . ': ' . $v, array_keys($headers), $headers),
-            CURLOPT_CONNECTTIMEOUT => 10,
-            CURLOPT_TIMEOUT        => $this->timeout,
-            CURLOPT_HEADERFUNCTION => static function ($ch, string $line) use (&$respHeaders): int {
-                $parts = explode(':', $line, 2);
-                if (count($parts) === 2) {
-                    $respHeaders[strtolower(trim($parts[0]))] = trim($parts[1]);
-                }
-                return strlen($line);
-            },
-        ];
-
-        if ($method === 'HEAD') {
-            $opts[CURLOPT_NOBODY] = true;
+        try {
+            return Http::request($method, $url, [
+                'headers'         => $headers,
+                'body'            => $upload === null ? $body : null,
+                'upload'          => $upload !== null ? ['handle' => $upload['handle'], 'size' => $upload['size']] : null,
+                'sink'            => $sink,
+                'timeout'         => $this->timeout,
+                'connect_timeout' => 10,
+            ]);
+        } catch (RuntimeException $e) {
+            throw new RuntimeException('Object storage tidak bisa dihubungi: ' . $e->getMessage(), 0, $e);
         }
-
-        if ($upload !== null) {
-            $opts[CURLOPT_UPLOAD]     = true;
-            $opts[CURLOPT_INFILE]     = $upload['handle'];
-            $opts[CURLOPT_INFILESIZE] = $upload['size'];
-        } elseif ($body !== null) {
-            $opts[CURLOPT_POSTFIELDS] = $body;
-        }
-
-        $status = 0;
-        $out    = '';
-
-        if ($sink !== null) {
-            // Body error (XML) tetap ditangkap supaya pesannya bisa dilaporkan.
-            $opts[CURLOPT_WRITEFUNCTION] = static function ($ch, string $chunk) use ($sink, &$out): int {
-                if (curl_getinfo($ch, CURLINFO_RESPONSE_CODE) === 200) {
-                    return (int) fwrite($sink, $chunk);
-                }
-                $out .= $chunk;
-                return strlen($chunk);
-            };
-        } else {
-            $opts[CURLOPT_RETURNTRANSFER] = true;
-        }
-
-        curl_setopt_array($ch, $opts);
-        $result = curl_exec($ch);
-        $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-        $error  = curl_error($ch);
-
-        if ($result === false) {
-            throw new RuntimeException('Object storage tidak bisa dihubungi: ' . $error);
-        }
-        if ($sink === null) {
-            $out = (string) $result;
-        }
-
-        return ['status' => $status, 'headers' => $respHeaders, 'body' => $out];
     }
 
     /** /bucket/key dengan setiap segmen di-encode (format kanonik SigV4). */

@@ -8,7 +8,6 @@ use Cenim\Core\Audit;
 use Cenim\Core\Db;
 use Cenim\Core\Logger;
 use RuntimeException;
-use ZipArchive;
 
 /**
  * Backup data ke `storage/backup/`.
@@ -164,11 +163,7 @@ final class Backup
             return null;
         }
 
-        $zip = new ZipArchive();
-
-        if ($zip->open($target, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            throw new RuntimeException('Gagal membuat arsip unggahan: ' . $target);
-        }
+        $zip = new ZipWriter($target);
 
         sort($files);
 
@@ -176,7 +171,7 @@ final class Backup
             $zip->addFile($path, 'uploads/' . ltrim(substr($path, strlen($root)), '/'));
         }
 
-        $entries = $zip->numFiles;
+        $entries = $zip->count();
         $zip->close();
 
         return ['path' => $target, 'size' => (int) filesize($target), 'entries' => $entries];

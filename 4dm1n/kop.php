@@ -17,6 +17,7 @@ use Cenim\Core\View;
 use Cenim\Domain\BrandingRepo;
 use Cenim\Domain\SettingRepo;
 use Cenim\Generator\KopGenerator;
+use Cenim\Generator\LogoGenerator;
 
 $edition   = current_edition();
 $editionId = (int) ($edition['id'] ?? 0);
@@ -67,7 +68,7 @@ if (is_post()) {
     }
 
     try {
-        $files = KopGenerator::build($year, $editionId);
+        $files = KopGenerator::build($year, $editionId, LogoGenerator::postedPngs());
 
         Audit::log('kop.generated', ['meta' => ['year' => $year, 'files' => array_keys($files)]]);
         Session::flash('success', 'Letterhead generated. Invoices, receipts, and certificates now use it.');
@@ -86,6 +87,11 @@ View::render('admin/kop', [
     'active'   => 'kop',
     'edition'  => $edition,
     'year'     => $year,
+    'rasterTargets' => LogoGenerator::serverRender() ? [] : array_map(
+        static fn (string $name, int $width): array => ['name' => $name] + KopGenerator::rasterGeometry($width) + ['bg' => '#ffffff'],
+        array_keys(KopGenerator::pngTargets()),
+        KopGenerator::pngTargets()
+    ),
     'texts'    => KopGenerator::texts($year, $editionId),
     'files'    => KopGenerator::existing($year),
     'inUse'    => Cenim\Pdf\PdfBase::letterheadPath(),

@@ -61,6 +61,15 @@ final class LogoGenerator
         throw new RuntimeException('Font untuk angka tahun tidak ditemukan: ' . self::DEFAULT_FONT);
     }
 
+    /**
+     * PNG bisa digambar di server? Butuh gd dengan FreeType; bila tidak, PNG
+     * logo/kop dirender browser admin dari SVG.
+     */
+    public static function serverRender(): bool
+    {
+        return ext_available('gd') && function_exists('imagettftext');
+    }
+
     public static function basePath(): string
     {
         $path = CENIM_ROOT . '/reference/logo-base.png';
@@ -79,8 +88,8 @@ final class LogoGenerator
      */
     public static function png(int $year, int $width = 1024, bool $transparent = true, int $editionId = 0): string
     {
-        if (!extension_loaded('gd')) {
-            throw new RuntimeException('Ekstensi gd tidak tersedia di server ini.');
+        if (!self::serverRender()) {
+            throw new RuntimeException('gd/FreeType tidak tersedia; PNG logo dibuat di browser (lihat build()).');
         }
 
         $base = @imagecreatefrompng(self::basePath());
@@ -127,7 +136,7 @@ final class LogoGenerator
 
         // Cari ukuran font yang membuat tinggi angka sama dengan kotak template.
         $size = self::fitFontSize($font, $text, $boxH, $boxW);
-        $box  = imagettfbbox($size, 0, $font, $text);
+        $box  = TtfMetrics::bbox($size, $font, $text);
 
         $textW = abs($box[2] - $box[0]);
         $textH = abs($box[7] - $box[1]);
@@ -145,7 +154,7 @@ final class LogoGenerator
     {
         $size = max(4.0, $targetH); // titik awal yang wajar
         for ($i = 0; $i < 12; $i++) {
-            $box = imagettfbbox($size, 0, $font, $text);
+            $box = TtfMetrics::bbox($size, $font, $text);
             $h   = abs($box[7] - $box[1]);
 
             if ($h <= 0) {
@@ -156,7 +165,7 @@ final class LogoGenerator
         }
 
         // Jangan sampai melebar keluar kotak (mis. tahun dengan angka lebar).
-        $box = imagettfbbox($size, 0, $font, $text);
+        $box = TtfMetrics::bbox($size, $font, $text);
         $w   = abs($box[2] - $box[0]);
 
         if ($w > $maxW && $w > 0) {
@@ -206,7 +215,7 @@ final class LogoGenerator
 
         $font     = self::fontPath($editionId);
         $fontSize = self::fitFontSize($font, (string) $year, $boxH, $boxW);
-        $bbox     = imagettfbbox($fontSize, 0, $font, (string) $year);
+        $bbox     = TtfMetrics::bbox($fontSize, $font, (string) $year);
         $textH    = abs($bbox[7] - $bbox[1]);
 
         $centerX  = $boxX + $boxW / 2;
@@ -228,8 +237,8 @@ final class LogoGenerator
             '<text x="%.2f" y="%.2f" font-family="%s" font-size="%.2f" font-weight="700" fill="#FEFEFE" text-anchor="middle">%d</text>',
             $centerX,
             $baseline,
-            $embedFont ? '"' . $family . '"' : $family,
-            $fontSize,
+            $embedFont ? "'" . $family . "'" : $family,
+            $fontSize * 96 / 72, // ukuran GD dalam pt (96 dpi) → satuan px SVG
             $year
         );
 
@@ -238,29 +247,76 @@ final class LogoGenerator
     }
 
     /**
+     * Berkas PNG satu paket logo: nama => [lebar, transparan].
+     *
+     * @return array<string,array{0:int,1:bool}>
+     */
+    public static function pngTargets(int $year): array
+    {
+        $targets = [];
+
+        foreach (self::SIZES as $size) {
+            $targets['logo-cenim-' . $year . '-' . $size . '.png'] = [$size, true];
+        }
+
+        $targets['logo-cenim-' . $year . '-white-bg.png'] = [1024, false];
+        $targets['favicon-' . $year . '.png']             = [192, true];
+
+        return $targets;
+    }
+
+    /**
+     * Ukuran PNG untuk lebar tertentu — mengikuti gambar dasar, yang sedikit
+     * lebih sempit dari viewBox SVG (render browser memotong sisanya).
+     *
+     * @return array{width:int,height:int,vbW:float,vbH:float}
+     */
+    public static function rasterGeometry(int $width): array
+    {
+        $base = @getimagesize(self::basePath());
+        $ratio = $base !== false && $base[1] > 0 ? $base[0] / $base[1] : 1.1025;
+
+        preg_match('#viewBox="0 0 ([\d.]+) ([\d.]+)"#', (string) file_get_contents(CENIM_ROOT . '/reference/logo-cenim-template.svg'), $view);
+
+        return [
+            'width'  => $width,
+            'height' => (int) round($width / $ratio),
+            'vbW'    => (float) ($view[1] ?? 490),
+            'vbH'    => (float) ($view[2] ?? 418),
+        ];
+    }
+
+    /**
      * Simpan satu paket logo (SVG + PNG beberapa ukuran + favicon) ke storage
      * dan catat di tabel media.
      *
+     * Tanpa ekstensi gd, PNG-nya dirender browser admin dari SVG yang sama
+     * lalu dikirim lewat $browserPngs (nama berkas => isi PNG).
+     *
+     * @param  array<string,string> $browserPngs
      * @return array<string,string> label => path relatif di storage
      */
-    public static function build(int $year, int $editionId): array
+    public static function build(int $year, int $editionId, array $browserPngs = []): array
     {
         $dir     = 'generated/logo/' . $year;
         $created = [];
+        $gd      = self::serverRender();
 
-        foreach (self::SIZES as $size) {
-            $relative = $dir . '/logo-cenim-' . $year . '-' . $size . '.png';
-            self::store($relative, self::png($year, $size, true, $editionId));
-            $created['png' . $size] = $relative;
+        foreach (self::pngTargets($year) as $name => [$width, $transparent]) {
+            $bytes = $gd
+                ? self::png($year, $width, $transparent, $editionId)
+                : self::browserPng($browserPngs, $name, self::rasterGeometry($width));
+
+            $relative = $dir . '/' . $name;
+            self::store($relative, $bytes);
+
+            $label = match (true) {
+                str_starts_with($name, 'favicon-')  => 'favicon',
+                str_ends_with($name, '-white-bg.png') => 'png_white',
+                default                               => 'png' . $width,
+            };
+            $created[$label] = $relative;
         }
-
-        $relative = $dir . '/logo-cenim-' . $year . '-white-bg.png';
-        self::store($relative, self::png($year, 1024, false, $editionId));
-        $created['png_white'] = $relative;
-
-        $relative = $dir . '/favicon-' . $year . '.png';
-        self::store($relative, self::png($year, 192, true, $editionId));
-        $created['favicon'] = $relative;
 
         $relative = $dir . '/logo-cenim-' . $year . '.svg';
         self::store($relative, self::svg($year, true, $editionId));
@@ -269,6 +325,48 @@ final class LogoGenerator
         self::registerMedia($editionId, $year, $created);
 
         return $created;
+    }
+
+    /**
+     * PNG kiriman browser: harus PNG asli dengan ukuran yang diminta.
+     *
+     * @param array<string,string>          $pngs
+     * @param array{width:int,height:int}   $size
+     */
+    public static function browserPng(array $pngs, string $name, array $size): string
+    {
+        $bytes = $pngs[$name] ?? '';
+
+        if ($bytes === '') {
+            throw new RuntimeException('PNG ' . $name . ' belum dirender browser. Muat ulang halaman lalu coba lagi.');
+        }
+
+        $info = @getimagesizefromstring($bytes);
+
+        if (!str_starts_with($bytes, "\x89PNG\r\n\x1a\n") || $info === false || $info[2] !== IMAGETYPE_PNG
+            || $info[0] !== $size['width'] || $info[1] !== $size['height']) {
+            throw new RuntimeException('PNG ' . $name . ' dari browser tidak valid.');
+        }
+
+        return $bytes;
+    }
+
+    /**
+     * Ambil PNG kiriman form (field png[nama] berisi data URL).
+     *
+     * @return array<string,string>
+     */
+    public static function postedPngs(): array
+    {
+        $out = [];
+
+        foreach ((array) ($_POST['png'] ?? []) as $name => $dataUrl) {
+            if (is_string($dataUrl) && preg_match('#^data:image/png;base64,([A-Za-z0-9+/=]+)$#', $dataUrl, $m) === 1) {
+                $out[basename((string) $name)] = (string) base64_decode($m[1], true);
+            }
+        }
+
+        return $out;
     }
 
     private static function store(string $relative, string $bytes): void

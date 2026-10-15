@@ -111,8 +111,8 @@ final class KopGenerator
     /** Hasilkan PNG kop surat. */
     public static function png(int $year, int $editionId = 0, int $width = self::WIDTH): string
     {
-        if (!extension_loaded('gd')) {
-            throw new RuntimeException('Ekstensi gd tidak tersedia di server ini.');
+        if (!LogoGenerator::serverRender()) {
+            throw new RuntimeException('gd/FreeType tidak tersedia; PNG kop dibuat di browser (lihat build()).');
         }
 
         $canvas = imagecreatetruecolor(self::WIDTH, self::HEIGHT);
@@ -217,6 +217,101 @@ final class KopGenerator
     }
 
     /**
+     * Kop sebagai SVG dengan tata letak yang sama persis dengan png(): logo
+     * CENIM (SVG, tahun berubah), logo pendamping, teks (font PT Serif
+     * ditanam), dan garis navy/gold. Dipakai untuk pratinjau dan render PNG di
+     * browser pada server tanpa ekstensi gd.
+     */
+    public static function svg(int $year, int $editionId = 0): string
+    {
+        $w = self::WIDTH;
+        $h = self::HEIGHT;
+
+        $parts = ['<rect width="' . $w . '" height="' . $h . '" fill="#ffffff"/>'];
+
+        // ── Logo CENIM: template SVG ditanam sebagai <svg> bersarang ─────────
+        $logo = LogoGenerator::svg($year, true, $editionId);
+        if (preg_match('#<svg\b[^>]*viewBox="0 0 ([\d.]+) ([\d.]+)"[^>]*>(.*)</svg>#s', $logo, $m) === 1) {
+            $logoH = self::LOGO_ROW_HEIGHT;
+            $logoW = $logoH * (float) $m[1] / (float) $m[2];
+            $parts[] = sprintf(
+                '<svg x="%d" y="%d" width="%.2f" height="%d" viewBox="0 0 %s %s" preserveAspectRatio="xMinYMin meet">%s</svg>',
+                self::LOGO_CENIM_X,
+                self::LOGO_ROW_TOP,
+                $logoW,
+                $logoH,
+                $m[1],
+                $m[2],
+                $m[3]
+            );
+        }
+
+        $partners = self::partnersPath();
+        $size     = @getimagesize($partners);
+        if ($size !== false) {
+            $parts[] = sprintf(
+                '<image x="%d" y="%d" width="%d" height="%d" href="data:image/png;base64,%s"/>',
+                self::PARTNERS_X,
+                self::LOGO_ROW_TOP,
+                $size[0],
+                $size[1],
+                base64_encode((string) file_get_contents($partners))
+            );
+        }
+
+        // ── Teks: ukuran & baseline dihitung seperti png() ──────────────────
+        $texts = self::texts($year, $editionId);
+        $navy  = vsprintf('#%02x%02x%02x', self::NAVY);
+        $ink   = vsprintf('#%02x%02x%02x', self::INK);
+
+        [$line1, $line2] = self::splitTitle($texts['title']);
+        $titleSize = self::fitWidth(self::font('bold'), $line1, self::TITLE_TARGET_WIDTH, self::TITLE_HEIGHT * 1.12);
+
+        $lines = [
+            [$line1, 'bold', $titleSize, self::TITLE_LINE1_TOP, self::TITLE_HEIGHT, $navy],
+            [$line2, 'bold', $titleSize, self::TITLE_LINE2_TOP, self::TITLE_HEIGHT, $navy],
+            [$texts['organized'], 'regular', self::fitWidth(self::font('regular'), $texts['organized'], self::ORGANIZED_TARGET_WIDTH, self::ORGANIZED_H * 1.2), self::ORGANIZED_TOP, self::ORGANIZED_H, $ink],
+            [$texts['institute'], 'italic', self::fitWidth(self::font('italic'), $texts['institute'], self::INSTITUTE_TARGET_WIDTH, self::INSTITUTE_H * 1.2), self::INSTITUTE_TOP, self::INSTITUTE_H, $ink],
+        ];
+
+        $used = [];
+        foreach ($lines as [$text, $variant, $size, $top, $targetH, $color]) {
+            if (trim($text) === '') {
+                continue;
+            }
+
+            $box  = TtfMetrics::bbox($size, self::font($variant), $text);
+            $left = self::WIDTH / 2 - abs($box[2] - $box[0]) / 2 - min($box[0], $box[6]);
+            $used[$variant] = true;
+
+            $parts[] = sprintf(
+                '<text x="%.2f" y="%.2f" font-family="CenimKop%s" font-size="%.2f" fill="%s" textLength="%d" lengthAdjust="spacingAndGlyphs">%s</text>',
+                $left,
+                $top + $targetH - max($box[1], $box[3]),
+                ucfirst($variant),
+                $size * 96 / 72, // ukuran GD dalam pt (96 dpi) → px
+                $color,
+                abs($box[2] - $box[0]),
+                htmlspecialchars($text, ENT_XML1 | ENT_QUOTES, 'UTF-8')
+            );
+        }
+
+        // ── Garis navy + gold ───────────────────────────────────────────────
+        $parts[] = sprintf('<rect x="%d" y="%d" width="%d" height="%d" fill="%s"/>', self::RULE_X1, self::RULE_NAVY_TOP, self::RULE_X2 - self::RULE_X1 + 1, self::RULE_NAVY_H, $navy);
+        $parts[] = sprintf('<rect x="%d" y="%d" width="%d" height="%d" fill="%s"/>', self::RULE_X1, self::RULE_GOLD_TOP, self::RULE_X2 - self::RULE_X1 + 1, self::RULE_GOLD_H, vsprintf('#%02x%02x%02x', self::GOLD));
+
+        $faces = '';
+        foreach (array_keys($used) as $variant) {
+            $faces .= '@font-face{font-family:"CenimKop' . ucfirst($variant) . '";src:url(data:font/ttf;base64,'
+                . base64_encode((string) file_get_contents(self::font($variant))) . ') format("truetype");}';
+        }
+
+        return '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="' . $w . '" height="' . $h
+            . '" viewBox="0 0 ' . $w . ' ' . $h . '"><defs><style type="text/css">' . $faces . '</style></defs>'
+            . implode('', $parts) . '</svg>';
+    }
+
+    /**
      * Bagi judul menjadi dua baris seperti kop aslinya: baris pertama diisi
      * sebanyak mungkin kata tanpa melebihi lebar aman.
      *
@@ -229,7 +324,7 @@ final class KopGenerator
 
         // Bila satu baris sudah cukup lebar, tidak perlu dipecah.
         $size = LogoGenerator::fitFontSize($font, $title, (float) self::TITLE_HEIGHT, self::MAX_TEXT_WIDTH * 2);
-        $box  = imagettfbbox($size, 0, $font, $title);
+        $box  = TtfMetrics::bbox($size, $font, $title);
 
         if (abs($box[2] - $box[0]) <= self::MAX_TEXT_WIDTH) {
             return [$title, ''];
@@ -240,7 +335,7 @@ final class KopGenerator
 
         foreach ($words as $word) {
             $candidate = trim($line1 . ' ' . $word);
-            $box       = imagettfbbox($size, 0, $font, $candidate);
+            $box       = TtfMetrics::bbox($size, $font, $candidate);
 
             if ($rest === [] && abs($box[2] - $box[0]) <= self::MAX_TEXT_WIDTH) {
                 $line1 = $candidate;
@@ -266,7 +361,7 @@ final class KopGenerator
         $size = 40.0;
 
         for ($i = 0; $i < 12; $i++) {
-            $box = imagettfbbox($size, 0, $font, $text);
+            $box = TtfMetrics::bbox($size, $font, $text);
             $w   = abs($box[2] - $box[0]);
 
             if ($w <= 0) {
@@ -276,7 +371,7 @@ final class KopGenerator
             $size *= $targetW / $w;
         }
 
-        $box = imagettfbbox($size, 0, $font, $text);
+        $box = TtfMetrics::bbox($size, $font, $text);
         $h   = abs($box[7] - $box[1]);
 
         if ($h > $maxH && $h > 0) {
@@ -293,7 +388,7 @@ final class KopGenerator
             return;
         }
 
-        $box   = imagettfbbox($size, 0, $font, $text);
+        $box   = TtfMetrics::bbox($size, $font, $text);
         $textW = abs($box[2] - $box[0]);
 
         $x = (int) round((self::WIDTH - $textW) / 2 - min($box[0], $box[6]));
@@ -314,16 +409,22 @@ final class KopGenerator
         file_put_contents($pngPath, self::png($year, $editionId));
 
         try {
-            $pdf = new KopPdf();
-            $pdf->SetTitle('Letterhead CENIM ' . $year);
-            $pdf->AddPage();
-            // A4 lebar 210mm, margin 15mm → kop 180mm.
-            $pdf->Image($pngPath, 15, 12, 180);
-
-            return (string) $pdf->Output('S');
+            return self::pdfFrom($pngPath);
         } finally {
             @unlink($pngPath);
         }
+    }
+
+    /** PDF A4 dari PNG kop yang sudah ada (tidak butuh gd). */
+    public static function pdfFrom(string $pngPath): string
+    {
+        $pdf = new KopPdf();
+        $pdf->SetTitle('Letterhead CENIM');
+        $pdf->AddPage();
+        // A4 lebar 210mm, margin 15mm → kop 180mm.
+        $pdf->Image($pngPath, 15, 12, 180);
+
+        return (string) $pdf->Output('S');
     }
 
     /**
@@ -332,26 +433,48 @@ final class KopGenerator
      *
      * @return array<string,string>
      */
-    public static function build(int $year, int $editionId): array
+    public static function build(int $year, int $editionId, array $browserPngs = []): array
     {
         $dir     = 'generated/kop/' . $year;
         $created = [];
+        $gd      = LogoGenerator::serverRender();
 
-        $relative = $dir . '/kop.png';
-        self::store($relative, self::png($year, $editionId));
-        $created['png'] = $relative;
-
-        $relative = $dir . '/kop-web.png';
-        self::store($relative, self::png($year, $editionId, 1200));
-        $created['png_web'] = $relative;
+        foreach (self::pngTargets() as $name => $width) {
+            $relative = $dir . '/' . $name;
+            self::store($relative, $gd
+                ? self::png($year, $editionId, $width)
+                : LogoGenerator::browserPng($browserPngs, $name, self::rasterGeometry($width)));
+            $created[$name === 'kop.png' ? 'png' : 'png_web'] = $relative;
+        }
 
         $relative = $dir . '/kop-a4.pdf';
-        self::store($relative, self::pdf($year, $editionId));
+        self::store($relative, self::pdfFrom(storage_path($created['png'])));
         $created['pdf'] = $relative;
 
         self::registerMedia($editionId, $year, $created);
 
         return $created;
+    }
+
+    /**
+     * Berkas PNG kop: nama => lebar.
+     *
+     * @return array<string,int>
+     */
+    public static function pngTargets(): array
+    {
+        return ['kop.png' => self::WIDTH, 'kop-web.png' => 1200];
+    }
+
+    /** @return array{width:int,height:int,vbW:float,vbH:float} */
+    public static function rasterGeometry(int $width): array
+    {
+        return [
+            'width'  => $width,
+            'height' => (int) round($width * self::HEIGHT / self::WIDTH),
+            'vbW'    => (float) self::WIDTH,
+            'vbH'    => (float) self::HEIGHT,
+        ];
     }
 
     private static function store(string $relative, string $bytes): void
@@ -386,8 +509,18 @@ final class KopGenerator
         }
 
         // Bersihkan entri kop lama pada edisi ini.
-        foreach (Db::all("SELECT file_id FROM media WHERE edition_id = ? AND kind = 'kop'", [$editionId]) as $row) {
-            if ($row['file_id'] !== null) {
+        // Kop tahun yang sama menimpa path yang sama: cukup tandai terhapus,
+        // jangan hapus berkas fisiknya (itu berkas yang baru saja ditulis).
+        foreach (Db::all(
+            "SELECT m.file_id, f.path FROM media m LEFT JOIN files f ON f.id = m.file_id WHERE m.edition_id = ? AND m.kind = 'kop'",
+            [$editionId]
+        ) as $row) {
+            if ($row['file_id'] === null) {
+                continue;
+            }
+            if ((string) $row['path'] === $path) {
+                Db::update('files', ['deleted_at' => now()], 'id = :target_id', ['target_id' => (int) $row['file_id']]);
+            } else {
                 FileRepo::softDelete((int) $row['file_id']);
             }
         }

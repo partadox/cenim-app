@@ -129,7 +129,7 @@ use Cenim\Domain\FileRepo;
                 <i class="fa-solid fa-eye me-1"></i>Preview
             </button>
         </form>
-        <form method="post" class="m-0">
+        <form method="post" class="m-0"<?= raster_form_attrs(admin_url('kop-preview.php?year=' . $year), $rasterTargets) ?>>
             <?= Csrf::field() ?>
             <input type="hidden" name="year" value="<?= e((string) $year) ?>">
             <button type="submit" class="btn btn-sm btn-navy">
@@ -244,3 +244,5 @@ use Cenim\Domain\FileRepo;
         </div>
     </div>
 </div>
+
+<?php if ($rasterTargets !== []) require __DIR__ . '/_raster_generate.php'; ?>

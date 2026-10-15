@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Cenim\Core;
 
+use Cenim\Support\Http;
+
 /**
  * Verifikasi Cloudflare Turnstile di sisi server.
  *
@@ -51,33 +53,26 @@ final class Turnstile
             return 'Please complete the verification challenge.';
         }
 
-        if (!extension_loaded('curl')) {
-            Logger::error('Turnstile: ekstensi curl tidak tersedia');
-            return 'Verification is temporarily unavailable. Please contact the secretariat.';
+        try {
+            $res = Http::request('POST', self::VERIFY_URL, [
+                'headers'         => ['Content-Type' => 'application/x-www-form-urlencoded'],
+                'body'            => http_build_query([
+                    'secret'   => (string) env('TURNSTILE_SECRET_KEY', ''),
+                    'response' => $token,
+                    'remoteip' => client_ip(),
+                ]),
+                'timeout'         => 8,
+                'connect_timeout' => 5,
+            ]);
+        } catch (\RuntimeException $e) {
+            Logger::error('Turnstile: verifikasi gagal dihubungi', ['error' => $e->getMessage()]);
+            return 'Verification service is unreachable. Please try again in a moment.';
         }
 
-        $ch = curl_init(self::VERIFY_URL);
-        curl_setopt_array($ch, [
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => http_build_query([
-                'secret'   => (string) env('TURNSTILE_SECRET_KEY', ''),
-                'response' => $token,
-                'remoteip' => client_ip(),
-            ]),
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 8,
-            CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-        ]);
+        $body = $res['body'];
 
-        $body   = curl_exec($ch);
-        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error  = curl_error($ch);
-        curl_close($ch);
-
-        if ($body === false || $status !== 200) {
-            Logger::error('Turnstile: verifikasi gagal dihubungi', ['http' => $status, 'curl' => $error]);
+        if ($res['status'] !== 200) {
+            Logger::error('Turnstile: verifikasi gagal dihubungi', ['http' => $res['status']]);
             return 'Verification service is unreachable. Please try again in a moment.';
         }
 

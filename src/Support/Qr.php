@@ -45,9 +45,16 @@ final class Qr
         return $absolutePath;
     }
 
-    /** QR sebagai data URI, untuk ditampilkan di halaman HTML. */
+    /**
+     * QR sebagai data URI, untuk ditampilkan di halaman HTML. PNG bila gd ada;
+     * selain itu SVG (vektor, tidak butuh gd — tetap tajam saat dicetak).
+     */
     public static function dataUri(string $text, int $scale = 5): string
     {
+        if (!ext_available('gd')) {
+            return 'data:image/svg+xml;base64,' . base64_encode(self::svg($text, $scale));
+        }
+
         $temp = storage_path('tmp/qr-' . random_token(8) . '.png');
 
         try {
@@ -60,6 +67,38 @@ final class Qr
         }
 
         return 'data:image/png;base64,' . base64_encode($bytes);
+    }
+
+    /** QR sebagai SVG: satu path berisi kotak-kotak modul, margin 1 modul. */
+    public static function svg(string $text, int $scale = 5, int $margin = 1): string
+    {
+        $rows = [];
+
+        self::withSilencedDeprecations(static function () use ($text, &$rows): void {
+            $rows = \QRcode::text($text, false, QR_ECLEVEL_M, 1, 0);
+        });
+
+        if (!is_array($rows) || $rows === []) {
+            throw new RuntimeException('QR code gagal dibuat.');
+        }
+
+        $size = count($rows) + 2 * $margin;
+        $path = '';
+
+        foreach ($rows as $y => $row) {
+            // Gabungkan modul hitam berurutan dalam satu baris jadi satu persegi panjang.
+            if (preg_match_all('/1+/', (string) $row, $runs, PREG_OFFSET_CAPTURE) > 0) {
+                foreach ($runs[0] as [$run, $x]) {
+                    $path .= 'M' . ($x + $margin) . ' ' . ($y + $margin) . 'h' . strlen($run) . 'v1h-' . strlen($run) . 'z';
+                }
+            }
+        }
+
+        $px = $size * $scale;
+
+        return '<svg xmlns="http://www.w3.org/2000/svg" width="' . $px . '" height="' . $px . '" viewBox="0 0 ' . $size . ' ' . $size
+            . '" shape-rendering="crispEdges"><rect width="' . $size . '" height="' . $size . '" fill="#fff"/>'
+            . '<path d="' . $path . '" fill="#000"/></svg>';
     }
 
     private static function withSilencedDeprecations(callable $callback): void

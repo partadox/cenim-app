@@ -62,7 +62,11 @@ final class Security
     {
         $cdn    = self::cdnHosts();
         $frames = self::hosts((array) cfg('security.frame_src', []));
-        $extra  = self::hosts((array) cfg('security.extra_hosts', []));
+        $extra  = array_merge(
+            self::hosts((array) cfg('security.extra_hosts', [])),
+            // Aset tema langsung dari object storage (hanya bila mode publik aktif).
+            self::hosts(array_filter([(string) env('TANDIKAT_PUBLIC_URL', '')]))
+        );
 
         $script = self::join(["'self'", "'unsafe-inline'"], $cdn, $extra);
         $style  = self::join(["'self'", "'unsafe-inline'"], $cdn, $extra);

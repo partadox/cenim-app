@@ -101,7 +101,7 @@ use Cenim\Domain\FileRepo;
                     </div>
                 </form>
 
-                <form method="post">
+                <form method="post"<?= raster_form_attrs(admin_url('logo-svg.php?inline=1&year=' . $year), $rasterTargets) ?>>
                     <?= Csrf::field() ?>
                     <input type="hidden" name="year" value="<?= e((string) $year) ?>">
                     <button type="submit" class="btn btn-navy w-100">
@@ -142,10 +142,12 @@ use Cenim\Domain\FileRepo;
                 <a class="btn btn-sm btn-outline-secondary" href="<?= e(admin_url('logo-svg.php?year=' . $year . '&nofont=1')) ?>">
                     <i class="fa-solid fa-file-code me-1"></i>SVG (light)
                 </a>
-                <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener"
-                   href="<?= e(admin_url('logo-preview.php?year=' . $year . '&size=2048')) ?>">
-                    <i class="fa-solid fa-image me-1"></i>PNG 2048
-                </a>
+                <?php if ($rasterTargets === []): ?>
+                    <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener"
+                       href="<?= e(admin_url('logo-preview.php?year=' . $year . '&size=2048')) ?>">
+                        <i class="fa-solid fa-image me-1"></i>PNG 2048
+                    </a>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -215,3 +217,5 @@ use Cenim\Domain\FileRepo;
         </div>
     </div>
 </div>
+
+<?php if ($rasterTargets !== []) require __DIR__ . '/_raster_generate.php'; ?>

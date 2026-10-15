@@ -48,7 +48,7 @@ if (is_post()) {
     }
 
     try {
-        $files = LogoGenerator::build($year, $editionId);
+        $files = LogoGenerator::build($year, $editionId, LogoGenerator::postedPngs());
 
         Audit::log('logo.generated', ['meta' => ['year' => $year, 'files' => count($files)]]);
         Session::flash('success', count($files) . ' logo file(s) generated for ' . $year . '.');
@@ -68,6 +68,11 @@ View::render('admin/logo', [
     'active'   => 'logo',
     'edition'  => $edition,
     'year'     => $year,
+    'rasterTargets' => LogoGenerator::serverRender() ? [] : array_map(
+        static fn (string $name, array $t): array => ['name' => $name] + LogoGenerator::rasterGeometry($t[0]) + ['bg' => $t[1] ? null : '#ffffff'],
+        array_keys(LogoGenerator::pngTargets($year)),
+        LogoGenerator::pngTargets($year)
+    ),
     'sizes'    => LogoGenerator::SIZES,
     'files'    => LogoGenerator::existing($year),
     'font'     => basename(LogoGenerator::fontPath($editionId)),

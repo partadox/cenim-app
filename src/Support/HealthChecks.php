@@ -40,32 +40,40 @@ final class HealthChecks
             'hint'   => 'Butuh PHP 8.3 atau lebih baru.',
         ];
 
-        foreach (['pdo_sqlite', 'sqlite3', 'gd', 'curl', 'mbstring', 'zip', 'openssl', 'fileinfo'] as $ext) {
+        // Wajib: tanpa ini aplikasi tidak jalan (zlib untuk PDF dan backup).
+        foreach (['pdo_sqlite', 'sqlite3', 'mbstring', 'openssl', 'fileinfo', 'zlib'] as $ext) {
             $checks['Extension: ' . $ext] = [
                 'ok'     => extension_loaded($ext),
                 'detail' => extension_loaded($ext) ? 'loaded' : 'missing',
-                'hint'   => 'Aktifkan di cPanel > Select PHP Version > Extensions.',
+                'hint'   => self::extensionHint($ext),
             ];
         }
 
-        $freetype = function_exists('gd_info') && !empty(gd_info()['FreeType Support']);
-        $checks['GD FreeType (teks pada logo)'] = [
-            'ok'     => $freetype,
-            'detail' => $freetype ? 'available' : 'not available',
-            'hint'   => 'Dibutuhkan generator logo untuk menulis angka tahun ke PNG.',
+        // Opsional: aplikasi punya pengganti dalam PHP murni bila tidak ada.
+        $fallbacks = [
+            'curl' => 'object storage & Turnstile lewat socket TLS bawaan PHP',
+            'gd'   => 'PNG logo/kop dirender di browser admin, QR sertifikat sebagai SVG',
+            'zip'  => 'arsip ZIP ditulis oleh ZipWriter (PHP murni)',
+            'intl' => 'nama negara EDAS dari daftar ISO 3166 bawaan aplikasi',
         ];
 
-        $checks['Imagick (opsional)'] = [
-            'ok'      => extension_loaded('imagick'),
-            'detail'  => extension_loaded('imagick') ? 'loaded' : 'not loaded (fallback GD dipakai)',
-            'warning' => true,
+        foreach ($fallbacks as $ext => $fallback) {
+            $checks['Extension: ' . $ext . ' (opsional)'] = [
+                'ok'     => true,
+                'detail' => ext_available($ext) ? 'loaded' : 'not installed — memakai pengganti: ' . $fallback,
+            ];
+        }
+
+        $checks['Logo & kop PNG'] = [
+            'ok'     => true,
+            'detail' => \Cenim\Generator\LogoGenerator::serverRender()
+                ? 'digambar di server (gd + FreeType)'
+                : 'dirender di browser admin dari SVG (tanpa gd/FreeType)',
         ];
 
-        $checks['intl (nama negara import EDAS)'] = [
-            'ok'      => extension_loaded('intl'),
-            'detail'  => extension_loaded('intl') ? 'loaded' : 'not loaded (kode negara "ID" disimpan apa adanya)',
-            'hint'    => 'Aktifkan di cPanel → Select PHP Version → Extensions → intl.',
-            'warning' => true,
+        $checks['HTTP keluar'] = [
+            'ok'     => true,
+            'detail' => Http::transport() === 'curl' ? 'curl' : 'socket TLS bawaan PHP (tanpa curl)',
         ];
 
         foreach (
@@ -345,5 +353,17 @@ final class HealthChecks
         }
 
         return ['pass' => $pass, 'warn' => $warn, 'fail' => $fail];
+    }
+
+    /**
+     * Petunjuk mengaktifkan ekstensi. Di cPanel dengan CloudLinux ada menu
+     * Select PHP Version; di EasyApache (ea-phpXY) hanya admin server lewat WHM.
+     */
+    private static function extensionHint(string $ext): string
+    {
+        $package = 'ea-php' . PHP_MAJOR_VERSION . PHP_MINOR_VERSION . '-php-' . $ext;
+
+        return 'cPanel > Select PHP Version > Extensions bila ada; bila tidak (EasyApache), '
+            . 'minta admin server menginstal ' . $package . ' lewat WHM > EasyApache 4.';
     }
 }

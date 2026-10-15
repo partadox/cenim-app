@@ -69,7 +69,7 @@ final class LoaPdf extends PdfBase
         ], static fn (string $v): bool => $v !== ''));
 
         $chair = SettingRepo::chair($editionId);
-        $pdf->signatureBlock($chair['name'], $chair['title'], BrandingRepo::signaturePath($editionId, 'chair'), 'Sincerely,');
+        $pdf->signatureBlock($chair['name'], $chair['title'], BrandingRepo::signaturePath($editionId, 'chair'), 'Sincerely,', self::stampFor($editionId));
 
         return (string) $pdf->Output('S');
     }

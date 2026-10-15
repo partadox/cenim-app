@@ -134,7 +134,7 @@ final class InvoicePdf extends PdfBase
         );
 
         $treasurer = SettingRepo::treasurer($editionId);
-        $pdf->signatureBlock($treasurer['name'], $treasurer['title'], BrandingRepo::signaturePath($editionId, 'treasurer'));
+        $pdf->signatureBlock($treasurer['name'], $treasurer['title'], BrandingRepo::signaturePath($editionId, 'treasurer'), 'Conference secretariat', self::stampFor($editionId));
 
         return (string) $pdf->Output('S');
     }

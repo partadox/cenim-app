@@ -139,6 +139,27 @@ final class SettingRepo
         ];
     }
 
+    /** Ukuran (lebar) & geseran stempel bawaan, dalam mm. */
+    public const STAMP_DEFAULT = ['size' => 28.0, 'dx' => -14.0, 'dy' => 2.0];
+
+    /**
+     * Posisi stempel terhadap tanda tangan: lebar stempel (mm) dan geseran
+     * titik tengahnya dari titik tengah tanda tangan (mm; dx negatif = ke
+     * kiri, dy positif = ke bawah). Sama untuk LoA, invoice, dan receipt.
+     *
+     * @return array{size:float,dx:float,dy:float}
+     */
+    public static function stamp(int $editionId): array
+    {
+        $value = self::getArray($editionId, 'stamp_position', []);
+
+        return [
+            'size' => max(10.0, min(50.0, (float) ($value['size'] ?? self::STAMP_DEFAULT['size']))),
+            'dx'   => max(-40.0, min(40.0, (float) ($value['dx'] ?? self::STAMP_DEFAULT['dx']))),
+            'dy'   => max(-25.0, min(25.0, (float) ($value['dy'] ?? self::STAMP_DEFAULT['dy']))),
+        ];
+    }
+
     private static function editionTokens(array $edition, string $text): string
     {
         return trim(strtr($text, [

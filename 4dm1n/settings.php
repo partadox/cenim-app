@@ -53,26 +53,26 @@ if (is_post() && in_array(input('action'), ['signature_upload', 'signature_remov
     Csrf::verify();
 
     $role  = (string) input('role', 'chair');
-    $label = $role === 'treasurer' ? 'Treasurer' : 'Chair';
-    $docs  = $role === 'treasurer' ? 'invoices and receipts' : 'the LoA';
+    $label = match ($role) { 'treasurer' => 'Treasurer signature', 'stamp' => 'Stamp', default => 'Chair signature' };
+    $docs  = match ($role) { 'treasurer' => 'invoices and receipts', 'stamp' => 'the LoA, invoices and receipts', default => 'the LoA' };
 
     if (!isset(Cenim\Domain\BrandingRepo::SIGNERS[$role])) {
         Session::flash('error', 'Unknown signer.');
     } elseif (input('action') === 'signature_remove') {
         Cenim\Domain\BrandingRepo::clearSignature($editionId, $role);
         Audit::log('settings.signature_removed', ['meta' => ['role' => $role]]);
-        Session::flash('success', $label . ' signature & stamp removed from ' . $docs . '.');
+        Session::flash('success', $label . ' removed from ' . $docs . '.');
     } else {
         try {
             $fileId = Cenim\Domain\BrandingRepo::setSignature($editionId, (int) ($edition['year'] ?? date('Y')), $role, $_FILES['signature'] ?? []);
             Audit::log('settings.signature', ['meta' => ['role' => $role, 'file_id' => $fileId]]);
-            Session::flash('success', $label . ' signature & stamp uploaded — ' . $docs . ' now show it.');
+            Session::flash('success', $label . ' uploaded — ' . $docs . ' now show it.');
         } catch (InvalidArgumentException $e) {
-            Session::flash('error', $label . ' signature: ' . $e->getMessage());
+            Session::flash('error', $label . ': ' . $e->getMessage());
         }
     }
 
-    Response::redirect(admin_url('settings.php') . '#' . ($role === 'treasurer' ? 'treasurer' : 'chair'));
+    Response::redirect(admin_url('settings.php') . '#' . (isset(Cenim\Domain\BrandingRepo::SIGNERS[$role]) ? $role : 'chair'));
 }
 
 if (is_post()) {
@@ -102,6 +102,12 @@ if (is_post()) {
     foreach (['contact_email', 'contact_whatsapp', 'signatory_name', 'signatory_title', 'treasurer_name', 'treasurer_title'] as $key) {
         SettingRepo::set($editionId, $key, trim((string) input($key, '')));
     }
+
+    SettingRepo::set($editionId, 'stamp_position', [
+        'size' => (float) input('stamp_size', (string) SettingRepo::STAMP_DEFAULT['size']),
+        'dx'   => (float) input('stamp_dx', (string) SettingRepo::STAMP_DEFAULT['dx']),
+        'dy'   => (float) input('stamp_dy', (string) SettingRepo::STAMP_DEFAULT['dy']),
+    ]);
 
     SettingRepo::set($editionId, 'invoice_note', trim((string) input('invoice_note', '')));
     SettingRepo::set($editionId, 'receipt_note', trim((string) input('receipt_note', '')));
@@ -163,7 +169,9 @@ View::render('admin/settings', [
     'signatures' => [
         'chair'     => Cenim\Domain\BrandingRepo::signatureFile($editionId, 'chair'),
         'treasurer' => Cenim\Domain\BrandingRepo::signatureFile($editionId, 'treasurer'),
+        'stamp'     => Cenim\Domain\BrandingRepo::signatureFile($editionId, 'stamp'),
     ],
+    'stamp'     => SettingRepo::stamp($editionId),
     'title'    => 'Settings',
     'subtitle' => $edition['name'] ?? '',
     'active'   => 'settings',

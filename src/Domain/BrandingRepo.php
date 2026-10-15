@@ -294,18 +294,20 @@ final class BrandingRepo
      * @throws InvalidArgumentException
      */
     /**
-     * Penanda tangan dokumen: chair (LoA) dan treasurer (invoice & receipt).
-     * Masing-masing satu gambar tanda tangan + stempel, disimpan sebagai media.
+     * Gambar pengesahan dokumen: tanda tangan chair (LoA), tanda tangan
+     * treasurer (invoice & receipt), dan stempel konferensi yang ditumpuk di
+     * atas tanda tangan mana pun (posisi & ukuran: SettingRepo::stamp()).
      *
      * @var array<string,array{kind:string,purpose:string,label:string}>
      */
     public const SIGNERS = [
-        'chair'     => ['kind' => 'signature',           'purpose' => 'chair_signature',     'label' => 'Chair signature & stamp'],
-        'treasurer' => ['kind' => 'signature_treasurer', 'purpose' => 'treasurer_signature', 'label' => 'Treasurer signature & stamp'],
+        'chair'     => ['kind' => 'signature',           'purpose' => 'chair_signature',     'label' => 'Chair signature'],
+        'treasurer' => ['kind' => 'signature_treasurer', 'purpose' => 'treasurer_signature', 'label' => 'Treasurer signature'],
+        'stamp'     => ['kind' => 'stamp',               'purpose' => 'conference_stamp',    'label' => 'Conference stamp'],
     ];
 
     /**
-     * Pasang gambar tanda tangan + stempel (PNG transparan dianjurkan).
+     * Pasang gambar tanda tangan atau stempel (PNG transparan dianjurkan).
      *
      * @throws InvalidArgumentException
      */
@@ -319,10 +321,10 @@ final class BrandingRepo
 
         $info = @getimagesize((string) $upload['tmp_name']);
         if ($info === false || !in_array($info[2], [IMAGETYPE_PNG, IMAGETYPE_JPEG], true)) {
-            throw new InvalidArgumentException('The signature must be a PNG or JPG image.');
+            throw new InvalidArgumentException('The image must be a PNG or JPG file.');
         }
         if ((int) $upload['size'] > upload_max_bytes(self::LOGO_MAX_BYTES)) {
-            throw new InvalidArgumentException('The signature must not exceed ' . upload_max_label(self::LOGO_MAX_BYTES) . '.');
+            throw new InvalidArgumentException('The image must not exceed ' . upload_max_label(self::LOGO_MAX_BYTES) . '.');
         }
         if (min($info[0], $info[1]) < 150) {
             throw new InvalidArgumentException(sprintf('The image is %d×%d px; the shortest side must be at least 150 px.', $info[0], $info[1]));
@@ -357,7 +359,7 @@ final class BrandingRepo
         Db::delete('media', 'edition_id = ? AND kind = ?', [$editionId, $kind]);
     }
 
-    /** Baris files tanda tangan yang terpasang untuk peran ini, atau null. */
+    /** Baris files gambar yang terpasang untuk peran ini (chair/treasurer/stamp), atau null. */
     public static function signatureFile(int $editionId, string $role): ?array
     {
         $kind = self::SIGNERS[$role]['kind'] ?? null;
@@ -373,7 +375,7 @@ final class BrandingRepo
         );
     }
 
-    /** Path lokal gambar tanda tangan untuk PDF, atau null. */
+    /** Path lokal gambar tanda tangan / stempel untuk PDF, atau null. */
     public static function signaturePath(int $editionId, string $role): ?string
     {
         $row = self::signatureFile($editionId, $role);

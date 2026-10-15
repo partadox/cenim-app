@@ -1,19 +1,21 @@
 <?php
 /**
- * Unggah tanda tangan + stempel satu penanda tangan (dipakai di Settings).
+ * Unggah satu gambar pengesahan — tanda tangan chair/treasurer atau stempel
+ * (dipakai di Settings).
  * Input-nya terikat ke form tersembunyi signature-form-<role> lewat atribut
  * form=, karena kartu ini berada di dalam form Settings utama.
  *
- * @var string     $role  'chair' | 'treasurer'
+ * @var string     $role  'chair' | 'treasurer' | 'stamp'
  * @var array|null $file  baris files yang terpasang
- * @var string     $docs  dokumen yang memakai, untuk teks bantuan
+ * @var string     $label label kolom
+ * @var string     $help  teks bantuan (HTML aman)
  */
 ?>
-<label class="form-label" for="signature-<?= e($role) ?>" style="font-size:12.5px">Signature &amp; stamp</label>
+<label class="form-label" for="signature-<?= e($role) ?>" style="font-size:12.5px"><?= e($label) ?></label>
 <div class="d-flex flex-wrap align-items-start gap-3">
     <?php if (!empty($file)): ?>
         <div class="border rounded p-2 text-center" style="background:#fff;width:200px">
-            <img src="<?= e(app_url('public/file.php?id=' . (int) $file['id'])) ?>" alt="Signature &amp; stamp"
+            <img src="<?= e(app_url('public/file.php?id=' . (int) $file['id'])) ?>" alt="<?= e($label) ?>"
                  style="max-width:100%;max-height:90px;object-fit:contain">
         </div>
     <?php endif; ?>
@@ -31,8 +33,8 @@
             <?php endif; ?>
         </div>
         <div class="form-text" style="font-size:11.5px">
-            One image with the signature and the stamp, shown above the name on <?= e($docs) ?>.
-            <b>PNG with a transparent background</b>, about 1000 × 500 px (shortest side at least 150 px),
+            <?= $help ?>
+            <b>PNG with a transparent background</b>, shortest side at least 150 px,
             <?= e(upload_max_label(Cenim\Domain\BrandingRepo::LOGO_MAX_BYTES)) ?> max.
         </div>
     </div>

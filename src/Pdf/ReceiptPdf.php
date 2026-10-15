@@ -104,7 +104,7 @@ final class ReceiptPdf extends PdfBase
 
         // ── Tanda tangan ────────────────────────────────────────────────────
         $treasurer = SettingRepo::treasurer($editionId);
-        $pdf->signatureBlock($treasurer['name'], $treasurer['title'], BrandingRepo::signaturePath($editionId, 'treasurer'));
+        $pdf->signatureBlock($treasurer['name'], $treasurer['title'], BrandingRepo::signaturePath($editionId, 'treasurer'), 'Conference secretariat', self::stampFor($editionId));
 
         return (string) $pdf->Output('S');
     }

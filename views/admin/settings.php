@@ -161,7 +161,13 @@ use Cenim\Core\Csrf;
                         Token: <code>{edition_name}</code>.
                     </div>
 
-                    <?php $role = 'chair'; $file = $signatures['chair']; $docs = 'the LoA'; require __DIR__ . '/_signature_upload.php'; ?>
+                    <?php
+                    $role  = 'chair';
+                    $file  = $signatures['chair'];
+                    $label = 'Signature';
+                    $help  = 'The chair\'s signature only, about 1000 × 500 px — shown above the name on the LoA. The stamp is uploaded separately in <a href="#stamp">Stamp</a>.';
+                    require __DIR__ . '/_signature_upload.php';
+                    ?>
                 </div>
             </div>
 
@@ -185,7 +191,67 @@ use Cenim\Core\Csrf;
                     </div>
                     <div class="form-text mb-3" style="font-size:11.5px">Signs invoices and receipts. Token: <code>{edition_name}</code>.</div>
 
-                    <?php $role = 'treasurer'; $file = $signatures['treasurer']; $docs = 'invoices and receipts'; require __DIR__ . '/_signature_upload.php'; ?>
+                    <?php
+                    $role  = 'treasurer';
+                    $file  = $signatures['treasurer'];
+                    $label = 'Signature';
+                    $help  = 'The treasurer\'s signature only, about 1000 × 500 px — shown above the name on invoices and receipts. The stamp is uploaded separately in <a href="#stamp">Stamp</a>.';
+                    require __DIR__ . '/_signature_upload.php';
+                    ?>
+                </div>
+            </div>
+
+            <div class="cn-card mt-3" id="stamp">
+                <div class="cn-card-head">
+                    <i class="fa-solid fa-stamp text-muted"></i>
+                    <h2>Stamp</h2>
+                </div>
+                <div class="cn-card-body">
+                    <?php
+                    $role  = 'stamp';
+                    $file  = $signatures['stamp'];
+                    $label = 'Conference stamp';
+                    $help  = 'Placed on top of the signature on the LoA, invoices, and receipts. A square image, about 600 × 600 px.';
+                    require __DIR__ . '/_signature_upload.php';
+                    ?>
+
+                    <div class="row g-2 mt-2">
+                        <div class="col-4">
+                            <label class="form-label" for="stamp_size" style="font-size:12px">Size (mm)</label>
+                            <input type="number" class="form-control form-control-sm" id="stamp_size" name="stamp_size" min="10" max="50" step="1"
+                                   value="<?= e((string) $stamp['size']) ?>">
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label" for="stamp_dx" style="font-size:12px">Shift left/right (mm)</label>
+                            <input type="number" class="form-control form-control-sm" id="stamp_dx" name="stamp_dx" min="-40" max="40" step="1"
+                                   value="<?= e((string) $stamp['dx']) ?>">
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label" for="stamp_dy" style="font-size:12px">Shift up/down (mm)</label>
+                            <input type="number" class="form-control form-control-sm" id="stamp_dy" name="stamp_dy" min="-25" max="25" step="1"
+                                   value="<?= e((string) $stamp['dy']) ?>">
+                        </div>
+                    </div>
+                    <div class="form-text" style="font-size:11.5px">
+                        Measured from the middle of the signature: negative = left / up, positive = right / down.
+                        The preview follows your changes; click <b>Save settings</b> to apply them to the PDFs.
+                    </div>
+
+                    <?php
+                    $previewSig = $signatures['chair'] ?? $signatures['treasurer'];
+                    $fileUrl    = static fn (?array $f): string => $f !== null ? app_url('public/file.php?id=' . (int) $f['id']) : '';
+                    ?>
+                    <div class="mt-2 d-flex justify-content-center">
+                        <div id="stampPreview" class="border rounded position-relative" title="Preview at 4 px per mm"
+                             data-sig="<?= e($fileUrl($previewSig)) ?>" data-stamp="<?= e($fileUrl($signatures['stamp'])) ?>"
+                             style="width:280px;height:170px;background:#fff;overflow:hidden">
+                            <div class="position-absolute text-muted" style="top:6px;left:0;right:0;text-align:center;font-size:11px">Preview (signature block, 70 mm wide)</div>
+                            <img id="stampPreviewSig" alt="" class="position-absolute" style="display:none">
+                            <img id="stampPreviewStamp" alt="" class="position-absolute" style="display:none;opacity:.9">
+                            <div id="stampPreviewLine" class="position-absolute" style="left:32px;right:32px;border-top:1px solid #8a94a6"></div>
+                            <div id="stampPreviewName" class="position-absolute text-center" style="left:0;right:0;font-size:11px;font-weight:700"><?= e((string) $values['signatory_name'] ?: 'Name') ?></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -340,14 +406,14 @@ use Cenim\Core\Csrf;
     </div>
 </form>
 
-<?php foreach (['chair' => 'the LoA', 'treasurer' => 'invoices and receipts'] as $signRole => $signDocs): ?>
+<?php foreach (['chair' => 'the chair signature', 'treasurer' => 'the treasurer signature', 'stamp' => 'the stamp'] as $signRole => $signWhat): ?>
     <form method="post" enctype="multipart/form-data" id="signature-form-<?= e($signRole) ?>" class="d-none">
         <?= Csrf::field() ?>
         <input type="hidden" name="action" value="signature_upload">
         <input type="hidden" name="role" value="<?= e($signRole) ?>">
     </form>
     <form method="post" id="signature-remove-<?= e($signRole) ?>" class="d-none"
-          onsubmit="return confirm(<?= e(json_encode('Remove the ' . $signRole . ' signature & stamp from ' . $signDocs . '?')) ?>)">
+          onsubmit="return confirm(<?= e(json_encode('Remove ' . $signWhat . ' from the documents?')) ?>)">
         <?= Csrf::field() ?>
         <input type="hidden" name="action" value="signature_remove">
         <input type="hidden" name="role" value="<?= e($signRole) ?>">
@@ -385,3 +451,41 @@ use Cenim\Core\Csrf;
     </div>
 </div>
 
+<script>
+// Pratinjau stempel: skala 4 px/mm, kotak tanda tangan maks. 56×30 mm (sama dengan PDF).
+(function () {
+    var box = document.getElementById('stampPreview');
+    if (!box) { return; }
+    var MM = 4, BLOCK_W = 70, TOP = 22;
+    var sig = document.getElementById('stampPreviewSig');
+    var stamp = document.getElementById('stampPreviewStamp');
+    var line = document.getElementById('stampPreviewLine');
+    var name = document.getElementById('stampPreviewName');
+    var inputs = ['stamp_size', 'stamp_dx', 'stamp_dy'].map(function (id) { return document.getElementById(id); });
+
+    function draw() {
+        var w = 56, h = 14;
+        if (sig.dataset.ok === '1') {
+            h = w * sig.naturalHeight / sig.naturalWidth;
+            if (h > 30) { h = 30; w = h * sig.naturalWidth / sig.naturalHeight; }
+            sig.style.cssText = 'display:block;position:absolute;left:' + ((BLOCK_W - w) / 2 * MM) + 'px;top:' + TOP + 'px;width:' + (w * MM) + 'px;height:' + (h * MM) + 'px';
+        }
+        if (stamp.dataset.ok === '1') {
+            var size = parseFloat(inputs[0].value) || 28, dx = parseFloat(inputs[1].value) || 0, dy = parseFloat(inputs[2].value) || 0;
+            var sh = size * stamp.naturalHeight / stamp.naturalWidth;
+            stamp.style.cssText = 'display:block;position:absolute;opacity:.9;width:' + (size * MM) + 'px;height:' + (sh * MM) + 'px;left:'
+                + ((BLOCK_W / 2 + dx - size / 2) * MM) + 'px;top:' + (TOP + (h / 2 + dy - sh / 2) * MM) + 'px';
+        }
+        line.style.top = (TOP + (h + 1) * MM) + 'px';
+        name.style.top = (TOP + (h + 2) * MM) + 'px';
+    }
+
+    [[sig, box.dataset.sig], [stamp, box.dataset.stamp]].forEach(function (pair) {
+        if (!pair[1]) { return; }
+        pair[0].onload = function () { pair[0].dataset.ok = '1'; draw(); };
+        pair[0].src = pair[1];
+    });
+    inputs.forEach(function (input) { input.addEventListener('input', draw); });
+    draw();
+})();
+</script>

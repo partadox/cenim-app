@@ -475,9 +475,32 @@ class PdfBase extends \tFPDF
         $this->Ln(1);
     }
 
-    /** Blok tanda tangan di kanan bawah. */
-    protected function signatureBlock(string $name, string $title, ?string $imagePath = null, string $caption = 'Conference secretariat'): void
+    /**
+     * Stempel konferensi untuk ditumpuk di atas tanda tangan, atau null bila
+     * belum diunggah (Settings → Stamp).
+     *
+     * @return array{path:string,size:float,dx:float,dy:float}|null
+     */
+    public static function stampFor(int $editionId): ?array
     {
+        $path = BrandingRepo::signaturePath($editionId, 'stamp');
+
+        return $path !== null ? ['path' => $path] + SettingRepo::stamp($editionId) : null;
+    }
+
+    /**
+     * Blok tanda tangan di kanan bawah: keterangan, gambar tanda tangan,
+     * stempel di atasnya (geseran & ukuran dari Settings), garis, nama, jabatan.
+     *
+     * @param array{path:string,size:float,dx:float,dy:float}|null $stamp
+     */
+    protected function signatureBlock(
+        string $name,
+        string $title,
+        ?string $imagePath = null,
+        string $caption = 'Conference secretariat',
+        ?array $stamp = null
+    ): void {
         if (trim($name) === '' && $imagePath === null) {
             return;
         }
@@ -498,21 +521,39 @@ class PdfBase extends \tFPDF
         $this->SetTextColor(...self::GREY);
         $this->Cell($width, 5, $caption, 0, 2, 'C');
 
+        // Kotak tanda tangan: muat dalam 56×30 mm, rasio dijaga. Tanpa gambar,
+        // ruang kosong 16 mm untuk tanda tangan basah.
+        $boxTop = $this->GetY() + 1;
+        $imgW   = 56.0;
+        $imgH   = 14.0;
+
         if ($imagePath !== null && is_file($imagePath)) {
-            // Tanda tangan + stempel: muat dalam kotak 56×30 mm, rasio dijaga.
             $size  = @getimagesize($imagePath);
             $ratio = ($size !== false && $size[0] > 0) ? $size[1] / $size[0] : 0.4;
-            $imgW  = 56.0;
             $imgH  = $imgW * $ratio;
             if ($imgH > 30.0) {
                 $imgH = 30.0;
                 $imgW = $imgH / $ratio;
             }
-            $this->Image($imagePath, $x + ($width - $imgW) / 2, $this->GetY() + 1, $imgW, $imgH);
-            $this->SetY($this->GetY() + $imgH + 2);
-        } else {
-            $this->Ln(16);
+            $this->Image($imagePath, $x + ($width - $imgW) / 2, $boxTop, $imgW, $imgH);
         }
+
+        // Stempel ditumpuk di atas tanda tangan; titik tengahnya digeser dx/dy mm
+        // dari titik tengah kotak tanda tangan.
+        if ($stamp !== null && is_file($stamp['path'])) {
+            $size   = @getimagesize($stamp['path']);
+            $stampW = (float) $stamp['size'];
+            $stampH = ($size !== false && $size[0] > 0) ? $stampW * $size[1] / $size[0] : $stampW;
+            $this->Image(
+                $stamp['path'],
+                $x + $width / 2 + (float) $stamp['dx'] - $stampW / 2,
+                $boxTop + $imgH / 2 + (float) $stamp['dy'] - $stampH / 2,
+                $stampW,
+                $stampH
+            );
+        }
+
+        $this->SetY($boxTop + $imgH + 1);
 
         $this->SetX($x);
         $this->SetDrawColor(...self::GREY);

@@ -173,7 +173,7 @@ final class HealthChecks
         $checks['Migrasi'] = [
             'ok'     => $pending === [],
             'detail' => $pending === [] ? 'semua migrasi diterapkan' : 'pending: ' . implode(', ', $pending),
-            'hint'   => 'Jalankan: php cenim-app/db/migrate.php',
+            'hint'   => 'Klik "Run pending migrations" di atas (atau: php cenim-app/db/migrate.php).',
         ];
 
         $edition = $dbOk && Db::tableExists('editions')

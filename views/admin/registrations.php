@@ -15,6 +15,17 @@ $cards = [
 ];
 ?>
 
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <div class="btn-group">
+        <a href="<?= e(admin_url('registrations-export.php')) ?>" class="btn btn-sm btn-outline-secondary"
+           title="Every registered person: presenters, co-authors and guests (draft registrations excluded)">
+            <i class="fa-solid fa-file-excel me-1" style="color:#1d6f42"></i>Export participants (Excel)
+        </a>
+        <a href="<?= e(admin_url('registrations-export.php?status=paid')) ?>" class="btn btn-sm btn-outline-secondary"
+           title="Only registrations whose invoice is paid">Paid only</a>
+    </div>
+</div>
+
 <div class="row g-3 mb-3">
     <?php foreach ($cards as $card): ?>
         <div class="col-6 col-lg-3">

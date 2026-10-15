@@ -37,10 +37,11 @@ switch ($table) {
         $params = [$editionId];
 
         // Filter tambahan dari toolbar.
+        // Presenter dipilih author di Registration form (bukan diset admin saat import).
         $presenter = (string) input('f_presenter', '');
         if ($presenter === 'yes' || $presenter === 'no') {
-            $where   .= ' AND a.is_presenter = ?';
-            $params[] = $presenter === 'yes' ? 1 : 0;
+            $where .= ($presenter === 'yes' ? ' AND EXISTS' : ' AND NOT EXISTS')
+                . " (SELECT 1 FROM registrations rp WHERE rp.author_id = a.id AND rp.presenter_id IS NOT NULL AND rp.status != 'draft')";
         }
 
         $country = (string) input('f_country', '');
@@ -74,7 +75,8 @@ switch ($table) {
                 'affiliation'       => ['select' => 'a.affiliation'],
                 'country'           => ['select' => 'a.country'],
                 'total_pages'       => ['select' => 'a.total_pages', 'searchable' => false],
-                'is_presenter'      => ['select' => 'a.is_presenter', 'searchable' => false],
+                'is_presenter'      => ['select' => "(SELECT pa.name FROM registrations rp JOIN paper_authors pa ON pa.id = rp.presenter_id
+                                                         WHERE rp.author_id = a.id AND rp.status != 'draft' LIMIT 1)", 'searchable' => false],
                 'paper_status'      => ['select' => 'a.paper_status', 'searchable' => false],
                 'created_at'        => ['select' => 'a.created_at', 'searchable' => false],
                 'actions'           => ['select' => 'a.id', 'searchable' => false, 'orderable' => false],
@@ -91,9 +93,9 @@ switch ($table) {
                     ? '<span class="text-muted">&mdash;</span>'
                     : '<span title="' . e($title) . '">' . e(mb_strimwidth($title, 0, 60, '…')) . '</span>';
 
-                $presenter = (int) $row['is_presenter'] === 1
-                    ? '<span class="cn-badge cn-badge-verified">Presenter</span>'
-                    : '<span class="cn-badge cn-badge-draft">Non-presenter</span>';
+                $presenter = (string) ($row['is_presenter'] ?? '') !== ''
+                    ? '<span class="cn-badge cn-badge-verified" title="Chosen in the Registration form">' . e((string) $row['is_presenter']) . '</span>'
+                    : '<span class="text-muted" style="font-size:12px">Not chosen yet</span>';
 
                 $statusClass = match ((string) $row['paper_status']) {
                     'accepted' => 'cn-badge-verified',

@@ -230,7 +230,8 @@ final class PaperAuthorRepo
         $first = Db::one('SELECT * FROM paper_authors WHERE author_id = ? ORDER BY position, id LIMIT 1', [$authorId]);
 
         if ($first === null) {
-            Db::insert('paper_authors', self::normalize($data + ['position' => 1, 'is_presenter' => 1]) + [
+            // Presenter belum ada: dipilih author sendiri di Registration form.
+            Db::insert('paper_authors', self::normalize($data + ['position' => 1, 'is_presenter' => 0]) + [
                 'edition_id' => (int) $paper['edition_id'],
                 'author_id'  => $authorId,
                 'created_at' => now(),

@@ -59,7 +59,8 @@ if (is_post()) {
         'country'           => (string) input('country', ''),
         'phone'             => (string) input('phone', ''),
         'total_pages'       => (string) input('total_pages', '0'),
-        'is_presenter'      => input_bool('is_presenter') ? 1 : 0,
+        // Bukan isian admin: presenter dipilih author di Registration form.
+        'is_presenter'      => (int) ($values['is_presenter'] ?? 1),
         'paper_status'      => (string) input('paper_status', 'accepted'),
         'note'              => (string) input('note', ''),
     ];

@@ -85,6 +85,24 @@ final class Backup
         return $summary;
     }
 
+    /**
+     * Snapshot database saja (tanpa unggahan), mis. sebelum migrasi dari
+     * halaman Health. Ikut dirotasi bersama backup harian.
+     *
+     * @return array{path:string,size:int}
+     */
+    public static function snapshotNow(string $tag): array
+    {
+        $dir = storage_path('backup');
+        if (!ensure_dir($dir)) {
+            throw new RuntimeException('Folder backup tidak writable: ' . $dir);
+        }
+
+        $tag = preg_replace('/[^a-z0-9]+/', '-', strtolower($tag)) ?: 'manual';
+
+        return self::snapshotDatabase($dir . '/cenim-db-' . gmdate('Ymd-His') . '-' . $tag . '.sqlite.gz');
+    }
+
     /** @return array{path:string,size:int} */
     private static function snapshotDatabase(string $target): array
     {

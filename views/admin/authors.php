@@ -29,9 +29,9 @@
 
         <div class="ms-auto d-flex flex-wrap gap-2">
             <select id="fPresenter" class="form-select form-select-sm" style="width:auto">
-                <option value="">All types</option>
-                <option value="yes">Presenter</option>
-                <option value="no">Non-presenter</option>
+                <option value="">All presenters</option>
+                <option value="yes">Presenter chosen</option>
+                <option value="no">Presenter not chosen yet</option>
             </select>
 
             <select id="fStatus" class="form-select form-select-sm" style="width:auto">
@@ -74,7 +74,7 @@
                         <th>Affiliation</th>
                         <th>Country</th>
                         <th>Pages</th>
-                        <th>Type</th>
+                        <th title="Chosen by the author in the Registration form">Presenter</th>
                         <th>Status</th>
                         <th>Added</th>
                         <th class="text-end">Actions</th>

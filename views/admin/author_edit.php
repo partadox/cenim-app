@@ -113,15 +113,6 @@ $cls = static fn (string $field): string => isset($errors[$field]) ? ' is-invali
                                    value="<?= e((string) $values['phone']) ?>" maxlength="50">
                         </div>
                         <div class="col-12">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" value="1" id="is_presenter" name="is_presenter"
-                                    <?= (int) $values['is_presenter'] === 1 ? 'checked' : '' ?>>
-                                <label class="form-check-label" for="is_presenter">
-                                    Presenter (eligible for the presenter certificate)
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-12">
                             <label class="form-label" for="note">Internal note</label>
                             <textarea class="form-control" id="note" name="note" rows="2" maxlength="1000"><?= e((string) $values['note']) ?></textarea>
                             <div class="form-text" style="font-size:11.5px">Only visible to the committee.</div>
@@ -239,7 +230,8 @@ $cls = static fn (string $field): string => isset($errors[$field]) ? ' is-invali
                 </table>
             </div>
             <p class="text-muted mb-0" style="font-size:11.5px">
-                Order 1 is the first author (also shown in the paper fields above). Presenter = receives the presenter certificate.
+                Order 1 is the first author (also shown in the paper fields above). The presenter is chosen by the authors in the
+                Registration form; tick Presenter here only to correct it (it receives the presenter certificate).
                 For many papers at once use <a href="<?= e(admin_url('import.php?kind=paper_authors')) ?>">Import author list</a>.
             </p>
         </div>

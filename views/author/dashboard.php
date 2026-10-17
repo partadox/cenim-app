@@ -301,9 +301,9 @@ $certificateList = static function (array $items, bool $released, string $from, 
             $docs = [
                 ['Letter of Acceptance', 'fa-envelope-open-text', $loaAvailable ? author_url('loa.php') : null,
                     $loaAvailable ? 'Available' : 'Available once the paper is accepted'],
-                ['Invoice', 'fa-file-invoice', $invoice !== null ? author_url('invoice.php') : null,
+                ['Invoice', 'fa-file-invoice', $invoice !== null ? author_url('invoice-pdf.php') : null,
                     $invoice !== null ? (string) $invoice['number'] : 'Not issued yet'],
-                ['Receipt', 'fa-receipt', $receipt !== null ? author_url('receipt.php') : null,
+                ['Receipt', 'fa-receipt', $receipt !== null ? author_url('receipt-pdf.php') : null,
                     $receipt !== null ? (string) $receipt['number'] : 'Issued after payment is confirmed'],
             ];
             ?>

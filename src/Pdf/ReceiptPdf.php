@@ -25,7 +25,8 @@ final class ReceiptPdf extends PdfBase
         $relative = 'generated/receipts/' . self::safeName((string) $receipt['number']) . '.pdf';
         $absolute = storage_path($relative);
 
-        if (!$refresh && ($receipt['pdf_cache'] ?? null) !== null && is_file($absolute)) {
+        if (!$refresh && ($receipt['pdf_cache'] ?? null) !== null && is_file($absolute)
+            && filemtime($absolute) >= self::layoutTime()) {
             return $absolute;
         }
 
@@ -70,7 +71,7 @@ final class ReceiptPdf extends PdfBase
                 'lines' => [
                     'Paper ' . $receipt['paper_id'],
                     (string) ($receipt['paper_title'] ?? ''),
-                    'Registration fee — ' . ($receipt['participant_type'] === 'non_presenter' ? 'Non-presenter' : 'Presenter'),
+                    'Registration fee - ' . ($receipt['participant_type'] === 'non_presenter' ? 'Non-presenter' : 'Presenter'),
                 ],
             ]
         );
@@ -85,14 +86,14 @@ final class ReceiptPdf extends PdfBase
         // ── Rincian pembayaran ──────────────────────────────────────────────
         $paidAt = $receipt['paid_at'] !== null && (string) $receipt['paid_at'] !== ''
             ? fmt_date((string) $receipt['paid_at'] . (strlen((string) $receipt['paid_at']) <= 10 ? ' 00:00:00' : ''))
-            : '—';
+            : '-';
 
         $rows = [
             'Payment method'     => \Cenim\Domain\PaymentRepo::methodLabel((string) $receipt['method']),
             'Transfer date'      => $paidAt,
-            'Sender name'        => (string) ($receipt['sender_name'] ?? '—'),
-            'Sender bank'        => (string) ($receipt['bank_name'] ?? '—'),
-            'Reference'          => (string) ($receipt['reference'] ?? '—'),
+            'Sender name'        => (string) ($receipt['sender_name'] ?? '-'),
+            'Sender bank'        => (string) ($receipt['bank_name'] ?? '-'),
+            'Reference'          => (string) ($receipt['reference'] ?? '-'),
             'Confirmed by'       => 'Conference secretariat, ' . fmt_dt((string) $receipt['confirmed_at'], 'd M Y'),
             'Invoice amount'     => fmt_money((float) $receipt['invoice_total'], (string) $receipt['invoice_currency']),
         ];

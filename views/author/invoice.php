@@ -52,8 +52,11 @@ $status = (string) ($registration['status'] ?? RegistrationRepo::STATUS_DRAFT);
                 <div class="cn-card-head">
                     <i class="fa-solid fa-file-invoice text-muted"></i>
                     <h2>Invoice <?= e((string) $invoice['number']) ?></h2>
-                    <a class="btn btn-sm btn-navy ms-auto" href="<?= e(author_url('invoice-pdf.php?download=1')) ?>">
-                        <i class="fa-solid fa-file-pdf me-1"></i>Download PDF
+                    <a class="btn btn-sm btn-navy ms-auto" href="<?= e(author_url('invoice-pdf.php')) ?>" target="_blank" rel="noopener">
+                        <i class="fa-solid fa-file-pdf me-1"></i>Open PDF<i class="fa-solid fa-arrow-up-right-from-square ms-1"></i>
+                    </a>
+                    <a class="btn btn-sm btn-outline-secondary" href="<?= e(author_url('invoice-pdf.php?download=1')) ?>" title="Download PDF">
+                        <i class="fa-solid fa-download"></i>
                     </a>
                 </div>
                 <div class="cn-card-body">

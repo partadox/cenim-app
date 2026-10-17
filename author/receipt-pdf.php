@@ -1,6 +1,7 @@
 <?php
 /**
- * Unduh PDF receipt milik author yang sedang login.
+ * PDF receipt milik author yang sedang login: tampil di tab browser (PDF viewer),
+ * ?download=1 untuk mengunduh.
  */
 
 declare(strict_types=1);

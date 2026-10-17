@@ -27,7 +27,8 @@ final class InvoicePdf extends PdfBase
         $relative = 'generated/invoices/' . self::safeName((string) $invoice['number']) . '.pdf';
         $absolute = storage_path($relative);
 
-        if (!$refresh && ($invoice['pdf_cache'] ?? null) !== null && is_file($absolute)) {
+        if (!$refresh && ($invoice['pdf_cache'] ?? null) !== null && is_file($absolute)
+            && filemtime($absolute) >= self::layoutTime()) {
             return $absolute;
         }
 
@@ -60,7 +61,7 @@ final class InvoicePdf extends PdfBase
         $pdf->documentHeader('INVOICE', [
             'Invoice No.' => (string) $invoice['number'],
             'Issued'      => fmt_date((string) $invoice['issued_at']),
-            'Due date'    => $invoice['due_date'] !== null ? fmt_date((string) $invoice['due_date'] . ' 00:00:00') : '—',
+            'Due date'    => $invoice['due_date'] !== null ? fmt_date((string) $invoice['due_date'] . ' 00:00:00') : '-',
             'Currency'    => $currency,
         ], $stamp);
 
@@ -71,7 +72,7 @@ final class InvoicePdf extends PdfBase
 
         $category = (string) ($invoice['package_name'] ?? '') !== ''
             ? (string) $invoice['package_name']
-            : (string) ($invoice['fee_label'] ?? '—');
+            : (string) ($invoice['fee_label'] ?? '-');
 
         $pdf->twoColumns(
             [

@@ -52,8 +52,11 @@ use Cenim\Support\Money;
                 <div class="cn-card-head">
                     <i class="fa-solid fa-receipt text-muted"></i>
                     <h2>Receipt <?= e((string) $receipt['number']) ?></h2>
-                    <a class="btn btn-sm btn-navy ms-auto" href="<?= e(author_url('receipt-pdf.php?download=1')) ?>">
-                        <i class="fa-solid fa-file-pdf me-1"></i>Download PDF
+                    <a class="btn btn-sm btn-navy ms-auto" href="<?= e(author_url('receipt-pdf.php')) ?>" target="_blank" rel="noopener">
+                        <i class="fa-solid fa-file-pdf me-1"></i>Open PDF<i class="fa-solid fa-arrow-up-right-from-square ms-1"></i>
+                    </a>
+                    <a class="btn btn-sm btn-outline-secondary" href="<?= e(author_url('receipt-pdf.php?download=1')) ?>" title="Download PDF">
+                        <i class="fa-solid fa-download"></i>
                     </a>
                 </div>
                 <div class="cn-card-body">

@@ -215,6 +215,12 @@ class PdfBase extends \tFPDF
         return $best;
     }
 
+    /** Semua teks dokumen lewat sini (MultiCell & Write juga): tanda pisah panjang → "-". */
+    public function Cell($w, $h = 0, $txt = '', $border = 0, $ln = 0, $align = '', $fill = false, $link = '')
+    {
+        parent::Cell($w, $h, str_replace(['—', '–'], '-', (string) $txt), $border, $ln, $align, $fill, $link);
+    }
+
     public function Footer(): void
     {
         $this->SetY(-16);
@@ -464,11 +470,30 @@ class PdfBase extends \tFPDF
         $fill = false;
 
         foreach ($rows as $label => $value) {
+            // Nilai panjang (mis. judul paper) turun ke baris berikutnya, label tetap di baris pertama.
+            $value  = (string) $value;
+            $lines  = $this->wrappedLines($value, $full - 52);
+            $height = $lines === 1 ? 6.4 : $lines * 5.2 + 1.2;
+            if ($this->GetY() + $height > $this->PageBreakTrigger) {
+                $this->AddPage();
+            }
+            $x = $this->GetX();
+            $y = $this->GetY();
+
             $this->SetFillColor(247, 249, 252);
+            if ($fill) {
+                $this->Rect($x, $y, $full, $height, 'F');
+            }
             $this->SetTextColor(...self::GREY);
-            $this->Cell(52, 6.4, '  ' . $label, 0, 0, 'L', $fill);
+            $this->Cell(52, 6.4, '  ' . $label, 0, 0, 'L');
             $this->SetTextColor(0, 0, 0);
-            $this->Cell($full - 52, 6.4, (string) $value, 0, 1, 'L', $fill);
+            if ($lines === 1) {
+                $this->Cell($full - 52, 6.4, $value, 0, 1, 'L');
+            } else {
+                $this->SetXY($x + 52, $y + 0.6);
+                $this->MultiCell($full - 52, 5.2, $value, 0, 'L');
+                $this->SetXY($x, $y + $height);
+            }
             $fill = !$fill;
         }
 
@@ -647,6 +672,18 @@ class PdfBase extends \tFPDF
     }
 
     /** Simpan isi PDF ke folder cache dan kembalikan path relatifnya. */
+    /**
+     * Waktu perubahan terakhir tata letak dokumen (berkas src/Pdf). PDF tersimpan
+     * yang lebih tua dibuat ulang, supaya perbaikan tampilan ikut ke dokumen lama;
+     * nominal tetap dari data invoice/receipt yang tersimpan.
+     */
+    protected static function layoutTime(): int
+    {
+        static $time = null;
+
+        return $time ??= (int) max(array_map('filemtime', glob(__DIR__ . '/*.php') ?: [__FILE__]));
+    }
+
     protected static function cache(string $relativePath, string $bytes): string
     {
         $absolute = storage_path($relativePath);

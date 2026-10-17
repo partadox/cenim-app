@@ -1,6 +1,7 @@
 <?php
 /**
- * Unduh PDF invoice milik author yang sedang login.
+ * PDF invoice milik author yang sedang login: tampil di tab browser (PDF viewer),
+ * ?download=1 untuk mengunduh.
  * Author hanya boleh mengunduh invoice-nya sendiri.
  */
 

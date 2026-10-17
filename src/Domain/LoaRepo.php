@@ -70,7 +70,7 @@ final class LoaRepo
         $end   = (string) ($edition['conference_end'] ?? '');
         $dates = $start === '' ? 'the scheduled conference dates'
             : ($end !== '' && $end !== $start
-                ? fmt_date($start . ' 00:00:00') . ' – ' . fmt_date($end . ' 00:00:00')
+                ? fmt_date($start . ' 00:00:00') . ' - ' . fmt_date($end . ' 00:00:00')
                 : fmt_date($start . ' 00:00:00'));
 
         return strtr($template !== '' ? $template : self::DEFAULT_BODY, [

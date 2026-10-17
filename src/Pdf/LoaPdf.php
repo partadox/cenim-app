@@ -47,7 +47,7 @@ final class LoaPdf extends PdfBase
         $pdf->SetFont('dejavu', '', 10);
         $pdf->Cell(0, 5.5, 'To:', 0, 1);
         foreach ($authors as $author) {
-            $line = $author['name'] . (($author['affiliation'] ?? '') !== '' ? ' — ' . $author['affiliation'] : '');
+            $line = $author['name'] . (($author['affiliation'] ?? '') !== '' ? ' - ' . $author['affiliation'] : '');
             $pdf->SetX($pdf->GetX() + 4);
             $pdf->MultiCell(0, 5.2, $author['position'] . '. ' . $line, 0, 'L');
         }

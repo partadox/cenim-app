@@ -1,6 +1,7 @@
 <?php
 /**
  * @var array $registration  hasil RegistrationRepo::findWithAuthor()
+ * @var array|null $confirmation  confirmation form (form 0)
  * @var array $recalculated  hasil FeeEngine::quote() atas data terkini
  * @var array<int,array<string,mixed>> $files
  * @var array<int,array{label:string,value:string}> $extraAnswers
@@ -97,7 +98,27 @@ $purposeLabels = [
                     <dd class="col-sm-8"><?= e((string) ($registration['phone'] ?? '—')) ?></dd>
 
                     <dt class="col-sm-4 text-muted fw-normal">Total pages</dt>
-                    <dd class="col-sm-8 mb-0"><?= e((string) (int) ($registration['total_pages'] ?? 0)) ?></dd>
+                    <dd class="col-sm-8">
+                        <?= e((string) (int) ($registration['total_pages'] ?? 0)) ?>
+                        <?php if ((int) ($registration['final_pages'] ?? 0) > 0): ?>
+                            <span class="cn-badge cn-badge-verified ms-1">final</span>
+                            <span class="text-muted" style="font-size:12px">&middot; review <?= (int) ($registration['review_pages'] ?? 0) ?></span>
+                        <?php else: ?>
+                            <span class="cn-badge cn-badge-draft ms-1">review</span>
+                        <?php endif; ?>
+                    </dd>
+
+                    <dt class="col-sm-4 text-muted fw-normal">Confirmation</dt>
+                    <dd class="col-sm-8 mb-0">
+                        <?php if ($confirmation !== null): ?>
+                            <?= e(Cenim\Domain\ConfirmationRepo::summary($confirmation)) ?>
+                            <?php if (($confirmation['note'] ?? '') !== ''): ?>
+                                <div class="text-muted" style="font-size:12px"><i class="fa-regular fa-note-sticky me-1"></i><?= nl2br(e((string) $confirmation['note'])) ?></div>
+                            <?php endif; ?>
+                        <?php else: ?>
+                            <span class="text-muted">Not submitted</span>
+                        <?php endif; ?>
+                    </dd>
                 </dl>
             </div>
         </div>

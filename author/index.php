@@ -3,8 +3,8 @@
  * Dashboard author & panitia/reviewer.
  *
  * Tab "Papers": paper terpilih (pemilih bila orang ini author di beberapa
- * paper), daftar semua author-nya, stepper 5 langkah (registrasi → invoice →
- * pembayaran → receipt), dokumen (LoA, invoice, receipt), dan sertifikat milik
+ * paper), daftar semua author-nya, confirmation form (langkah 0), stepper 5
+ * langkah (registrasi → invoice → pembayaran → receipt → video), dokumen (LoA, invoice, receipt), dan sertifikat milik
  * orang ini. Tab "Committee": sertifikat panitia/reviewer. Panitia murni yang
  * bukan author hanya melihat tab Committee.
  */
@@ -23,6 +23,7 @@ use Cenim\Domain\LoaRepo;
 use Cenim\Domain\PaperAuthorRepo;
 use Cenim\Domain\AttendanceRepo;
 use Cenim\Domain\CertificateRepo;
+use Cenim\Domain\ConfirmationRepo;
 use Cenim\Domain\InvoiceRepo;
 use Cenim\Domain\PaymentRepo;
 use Cenim\Domain\ReceiptRepo;
@@ -53,8 +54,48 @@ $registration = $author !== null ? RegistrationRepo::findByAuthor((int) $author[
 $status       = (string) ($registration['status'] ?? RegistrationRepo::STATUS_DRAFT);
 $isOpen       = SettingRepo::getBool($editionId, 'registration_open', true) && !edition_is_archive();
 
+// ── Langkah 0: confirmation form ────────────────────────────────────────────
+$confirmation  = $author !== null ? ConfirmationRepo::findForPaper((int) $author['id']) : null;
+$confirmOpen   = ConfirmationRepo::isOpen($editionId) && !edition_is_archive();
+$confirmBlocks = $author !== null && ConfirmationRepo::blocksRegistration($editionId, $author, $registration);
+$confirmDue    = ConfirmationRepo::deadline($editionId);
+$confirmDueText = $confirmDue !== '' ? ' Deadline ' . fmt_date($confirmDue . ' 00:00:00') . '.' : '';
+
+if ($author === null || !LoaRepo::isAvailable($author)) {
+    $step0 = null;
+} elseif ($confirmation !== null) {
+    $editableConfirm = ConfirmationRepo::isEditable($editionId, $registration) && !edition_is_archive();
+    $step0 = [
+        'state'     => 'done',
+        'note'      => ConfirmationRepo::summary($confirmation) . ' · '
+            . (int) $confirmation['pages'] . ' pages (reviewed manuscript)'
+            . ((int) $confirmation['extra_pages'] > 0 ? ', extra page fee ' . fmt_money((float) $confirmation['extra_page_fee'], (string) $confirmation['currency']) : '')
+            . '.',
+        'url'       => author_url('confirmation.php'),
+        'cta'       => $editableConfirm ? 'View or change' : 'View',
+        'filled_by' => $confirmation['filled_by_name'] ?? null,
+    ];
+} elseif (!$confirmBlocks && ($status !== RegistrationRepo::STATUS_DRAFT || !$confirmOpen)) {
+    $step0 = null; // registrasi sudah dikirim sebelum form ini ada, atau form tidak wajib & sudah ditutup
+} else {
+    $step0 = [
+        'state'     => 'active',
+        'note'      => $confirmOpen
+            ? 'Confirm offline or online presentation, how many people will come, and the number of pages.' . $confirmDueText
+            : 'The confirmation form is closed. Please contact the secretariat.',
+        'url'       => author_url('confirmation.php'),
+        'cta'       => $confirmOpen ? 'Open the form' : null,
+        'filled_by' => null,
+    ];
+}
+
 // ── Langkah 1: form registrasi ──────────────────────────────────────────────
-$step1 = match ($status) {
+$step1 = $confirmBlocks && $status === RegistrationRepo::STATUS_DRAFT ? [
+    'state' => 'locked',
+    'note'  => 'Opens after you submit the confirmation form (step 0).',
+    'cta'   => null,
+    'url'   => null,
+] : match ($status) {
     RegistrationRepo::STATUS_SUBMITTED => [
         'state' => 'done',
         'note'  => 'Submitted on ' . fmt_dt($registration['submitted_at'] ?? null) . '. Waiting for verification.',
@@ -315,4 +356,5 @@ View::render('author/dashboard', [
     'committeeCertificates' => $committeeCertificates,
     'certificatesReleased'  => $released,
     'steps'        => $steps,
+    'step0'        => $step0,
 ], 'author');

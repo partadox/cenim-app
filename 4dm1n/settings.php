@@ -79,6 +79,10 @@ if (is_post()) {
     Csrf::verify();
 
     // ── Periode & tanggal ───────────────────────────────────────────────────
+    SettingRepo::set($editionId, 'confirmation_open', input_bool('confirmation_open'));
+    SettingRepo::set($editionId, 'confirmation_required', input_bool('confirmation_required'));
+    $confirmationDeadline = trim((string) input('confirmation_deadline', ''));
+    SettingRepo::set($editionId, 'confirmation_deadline', preg_match('/^\d{4}-\d{2}-\d{2}$/', $confirmationDeadline) === 1 ? $confirmationDeadline : '');
     SettingRepo::set($editionId, 'registration_open', input_bool('registration_open'));
     SettingRepo::set($editionId, 'payment_open', input_bool('payment_open'));
     SettingRepo::set($editionId, 'attendance_open', input_bool('attendance_open'));
@@ -179,6 +183,9 @@ View::render('admin/settings', [
     'period'   => SettingRepo::getArray($editionId, 'registration_period', ['start' => '', 'end' => '']),
     'banks'    => $banks,
     'values'   => [
+        'confirmation_open'     => SettingRepo::getBool($editionId, 'confirmation_open', true),
+        'confirmation_required' => SettingRepo::getBool($editionId, 'confirmation_required', true),
+        'confirmation_deadline' => SettingRepo::getString($editionId, 'confirmation_deadline'),
         'registration_open'   => SettingRepo::getBool($editionId, 'registration_open', true),
         'payment_open'        => SettingRepo::getBool($editionId, 'payment_open', true),
         'attendance_open'     => SettingRepo::getBool($editionId, 'attendance_open', true),

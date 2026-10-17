@@ -39,6 +39,7 @@ $values = $author ?? [
     'country'           => '',
     'phone'             => '',
     'total_pages'       => '',
+    'final_pages'       => null,
     'is_presenter'      => 1,
     'paper_status'      => 'accepted',
     'note'              => '',
@@ -68,13 +69,23 @@ if (is_post()) {
     $values = array_merge($values, $input);
     $errors = AuthorRepo::validateRow($input, $editionId, $id);
 
+    // Halaman final manuscript: kosong = belum ada (biaya memakai halaman review).
+    $finalRaw   = trim((string) input('final_pages', ''));
+    $finalPages = $finalRaw === '' ? null : (int) $finalRaw;
+    $values['final_pages'] = $finalPages;
+    if ($finalPages !== null && ($finalPages < 1 || $finalPages > 200 || !ctype_digit($finalRaw))) {
+        $errors['final_pages'] = 'Final pages must be a number between 1 and 200, or empty.';
+    }
+
     if ($errors === []) {
         if ($id > 0) {
             AuthorRepo::update($id, $input);
+            AuthorRepo::setFinalPages($id, $finalPages);
             Audit::log('author.updated', ['target_type' => 'author', 'target_id' => $id, 'meta' => ['paper_id' => $input['paper_id']]]);
             Session::flash('success', 'Author "' . $input['first_author_name'] . '" updated.');
         } else {
             $newId = AuthorRepo::create($editionId, $input, 'manual');
+            AuthorRepo::setFinalPages($newId, $finalPages);
             Audit::log('author.created', ['target_type' => 'author', 'target_id' => $newId, 'meta' => ['paper_id' => $input['paper_id']]]);
             Session::flash('success', 'Author "' . $input['first_author_name'] . '" added.');
         }

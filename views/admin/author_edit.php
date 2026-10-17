@@ -49,13 +49,19 @@ $cls = static fn (string $field): string => isset($errors[$field]) ? ' is-invali
                             <input type="text" class="form-control" id="track" name="track"
                                    value="<?= e((string) $values['track']) ?>" maxlength="190">
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label" for="total_pages">Total pages</label>
+                        <div class="col-md-2">
+                            <label class="form-label" for="total_pages" title="Pages of the reviewed manuscript">Pages (review)</label>
                             <input type="number" class="form-control<?= $cls('total_pages') ?>" id="total_pages" name="total_pages"
                                    value="<?= e((string) $values['total_pages']) ?>" min="0" max="200">
                             <?= $err('total_pages') ?>
                         </div>
-                        <div class="col-md-5">
+                        <div class="col-md-2">
+                            <label class="form-label" for="final_pages" title="Pages of the final manuscript; empty = not checked yet">Pages (final)</label>
+                            <input type="number" class="form-control<?= $cls('final_pages') ?>" id="final_pages" name="final_pages"
+                                   value="<?= e((string) ($values['final_pages'] ?? '')) ?>" min="1" max="200" placeholder="—">
+                            <?= $err('final_pages') ?>
+                        </div>
+                        <div class="col-md-4">
                             <label class="form-label" for="paper_status">Paper status</label>
                             <select class="form-select<?= $cls('paper_status') ?>" id="paper_status" name="paper_status">
                                 <?php foreach ($statuses as $status): ?>

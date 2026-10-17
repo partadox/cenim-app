@@ -20,6 +20,26 @@ use Cenim\Core\Csrf;
                     <h2>Open periods</h2>
                 </div>
                 <div class="cn-card-body">
+                    <div class="d-flex flex-wrap align-items-center gap-3 mb-1">
+                        <div class="form-check m-0">
+                            <input class="form-check-input" type="checkbox" id="confirmation_open" name="confirmation_open" value="1"
+                                <?= $values['confirmation_open'] ? 'checked' : '' ?>>
+                            <label class="form-check-label" for="confirmation_open">Confirmation form open (step 0)</label>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <label for="confirmation_deadline" class="text-muted" style="font-size:12.5px">until</label>
+                            <input type="date" class="form-control form-control-sm" id="confirmation_deadline" name="confirmation_deadline"
+                                   value="<?= e((string) $values['confirmation_deadline']) ?>" style="width:160px">
+                        </div>
+                    </div>
+                    <div class="form-check mb-3 ms-4">
+                        <input class="form-check-input" type="checkbox" id="confirmation_required" name="confirmation_required" value="1"
+                            <?= $values['confirmation_required'] ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="confirmation_required" style="font-size:13px">
+                            Registration form opens only after the confirmation form is submitted
+                        </label>
+                        <div class="form-text" style="font-size:11.5px">Turn off to let papers that missed the deadline register without a confirmation.</div>
+                    </div>
                     <div class="form-check mb-2">
                         <input class="form-check-input" type="checkbox" id="registration_open" name="registration_open" value="1"
                             <?= $values['registration_open'] ? 'checked' : '' ?>>
@@ -52,13 +72,13 @@ use Cenim\Core\Csrf;
                             <input class="form-check-input" type="checkbox" id="shirt_size_enabled" name="shirt_size_enabled" value="1"
                                 <?= $values['shirt_size_enabled'] ? 'checked' : '' ?>>
                             <label class="form-check-label" for="shirt_size_enabled">
-                                <i class="fa-solid fa-shirt me-1 text-muted"></i>Ask the <b>shirt size</b> of everyone attending (registration form)
+                                <i class="fa-solid fa-shirt me-1 text-muted"></i>Ask the <b>shirt size</b> of everyone attending (confirmation and registration form)
                             </label>
                         </div>
                         <label class="form-label mb-1" for="shirt_sizes" style="font-size:12px">Sizes offered, comma separated</label>
                         <input type="text" class="form-control form-control-sm" id="shirt_sizes" name="shirt_sizes" maxlength="200"
                                value="<?= e((string) $values['shirt_sizes']) ?>" placeholder="XS, S, M, L, XL, XXL, 3XL">
-                        <div class="form-text" style="font-size:11.5px">Asked for the presenter and each additional attendee. Recap in Presentations.</div>
+                        <div class="form-text" style="font-size:11.5px">Asked per person in the confirmation form (early recap in Confirmations, for ordering) and again in the registration form (recap in Presentations).</div>
                     </div>
 
                     <div class="row g-2">
@@ -79,7 +99,7 @@ use Cenim\Core\Csrf;
                         </div>
                     </div>
                     <div class="form-text mt-2" style="font-size:11.5px">
-                        The dates are informational; what actually opens or closes the forms are the two switches above.
+                        The registration dates are informational; what actually opens or closes the forms are the switches above (and the confirmation / video deadlines).
                     </div>
                 </div>
             </div>

@@ -100,6 +100,29 @@ final class AuthorRepo
         return ['action' => 'inserted', 'id' => self::create($editionId, $data, $batch)];
     }
 
+    /**
+     * Jumlah halaman untuk biaya: final manuscript bila sudah diimpor,
+     * selain itu manuskrip review (total_pages).
+     */
+    public static function pages(array $author): int
+    {
+        $final = (int) ($author['final_pages'] ?? 0);
+
+        return $final > 0 ? $final : (int) ($author['total_pages'] ?? 0);
+    }
+
+    /** SQL untuk kolom halaman efektif (alias tabel authors = $alias). */
+    public static function pagesSql(string $alias = 'a'): string
+    {
+        return "COALESCE(NULLIF($alias.final_pages, 0), $alias.total_pages)";
+    }
+
+    /** Ganti hanya jumlah halaman final manuscript (null = hapus, kembali ke halaman review). */
+    public static function setFinalPages(int $id, ?int $pages): void
+    {
+        Db::update('authors', ['final_pages' => $pages, 'updated_at' => now()], 'id = :target_id', ['target_id' => $id]);
+    }
+
     /** Author tidak boleh dihapus bila sudah punya registrasi/pembayaran. */
     public static function hasRegistration(int $id): bool
     {

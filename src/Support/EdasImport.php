@@ -26,6 +26,7 @@ use Cenim\Domain\PaperAuthorRepo;
  *   - Nama di kolom gabungan itu biasanya nama lengkap ("Faris Muhamad
  *     Syariati"), sedangkan given+surname bisa terpotong ("Faris Syariati");
  *     nama lengkap dipakai bila jelas milik author yang sama.
+ *   - Jumlah halaman manuskrip review (opsional) dari kolom "review manuscript: pages" / "Pages".
  */
 final class EdasImport
 {
@@ -59,7 +60,7 @@ final class EdasImport
      * @param array<int,string>            $headers
      * @param array<int,array<int,string>> $rows
      * @return array<int,array{line:int, paper_id:string, title:string, edas_status:string, status:string,
-     *                         authors:array<int,array<string,string>>, warnings:array<int,string>}>
+     *                         pages:int, authors:array<int,array<string,string>>, warnings:array<int,string>}>
      */
     public static function parse(array $headers, array $rows): array
     {
@@ -69,6 +70,14 @@ final class EdasImport
             $col[mb_strtolower(trim($h))] = $i;
         }
         $cell = static fn (array $row, string $name): string => isset($col[$name]) ? trim((string) ($row[$col[$name]] ?? '')) : '';
+        $pagesCol = null;
+        // Halaman manuskrip review; halaman final diimpor terpisah (Confirmations → Import final pages).
+        foreach (['review manuscript: pages', 'pages', 'total pages'] as $name) {
+            if (isset($col[$name])) {
+                $pagesCol = $name;
+                break;
+            }
+        }
 
         $maxAuthors = 0;
         while (isset($col['author ' . ($maxAuthors + 1) . ' given'])) {
@@ -148,6 +157,7 @@ final class EdasImport
                 'title'       => $title,
                 'edas_status' => $cell($row, 'status'),
                 'status'      => self::status($cell($row, 'status')),
+                'pages'       => $pagesCol !== null ? (int) preg_replace('/\D+/', '', $cell($row, $pagesCol)) : 0,
                 'authors'     => $authors,
                 'warnings'    => $warnings,
             ];
@@ -157,8 +167,8 @@ final class EdasImport
     }
 
     /**
-     * Simpan hasil parse. Field yang tidak ada di EDAS (halaman, telepon,
-     * presenter, catatan, track) pada paper yang sudah ada tidak diubah.
+     * Simpan hasil parse. Field yang tidak ada di EDAS (telepon, presenter,
+     * catatan, track; halaman bila kolomnya tidak ada) pada paper yang sudah ada tidak diubah.
      * Author yang sudah tidak ada di EDAS tidak dihapus — dilaporkan saja.
      *
      * @return array{inserted:int, updated:int, skipped:int, warnings:int, authors:int,
@@ -208,6 +218,9 @@ final class EdasImport
                 'country'           => $first['country'],
                 'paper_status'      => $p['status'],
             ];
+            if (($p['pages'] ?? 0) > 0) {
+                $data['total_pages'] = (string) $p['pages'];
+            }
             if ($existing !== null) {
                 // Pertahankan data yang tidak dibawa EDAS.
                 $data += array_intersect_key($existing, array_flip(['track', 'phone', 'total_pages', 'is_presenter', 'note']));

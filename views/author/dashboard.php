@@ -16,6 +16,7 @@
  * @var array      $committeeCertificates
  * @var bool       $certificatesReleased
  * @var array      $steps
+ * @var array|null $step0         confirmation form, null bila tidak berlaku
  */
 
 use Cenim\Core\Csrf;
@@ -231,6 +232,33 @@ $certificateList = static function (array $items, bool $released, string $from, 
         <div class="alert alert-danger" style="font-size:13px">
             <b><i class="fa-solid fa-circle-exclamation me-1"></i>Correction requested</b>
             <div class="mt-1"><?= nl2br(e((string) $registration['reject_reason'])) ?></div>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($step0 !== null): ?>
+        <?php $class0 = $step0['state'] === 'done' ? 'is-done' : 'is-active'; ?>
+        <div class="cn-step <?= $class0 ?> mb-3 d-flex flex-wrap align-items-center gap-3">
+            <div style="flex:1 1 320px">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="cn-step-no">Step 0</span>
+                    <?php if ($step0['state'] === 'done'): ?>
+                        <i class="fa-solid fa-circle-check" style="color:#1a9c62"></i>
+                    <?php else: ?>
+                        <i class="fa-solid fa-clipboard-check" style="color:var(--cn-navy)"></i>
+                    <?php endif; ?>
+                </div>
+                <p class="cn-step-title">Confirmation Form</p>
+                <p class="cn-step-note mb-0"><?= e($step0['note']) ?></p>
+                <?php if (!empty($step0['filled_by'])): ?>
+                    <p class="cn-step-note mb-0 mt-1"><i class="fa-solid fa-user-pen me-1"></i>Filled by <?= e((string) $step0['filled_by']) ?></p>
+                <?php endif; ?>
+            </div>
+            <?php if (!empty($step0['url']) && !empty($step0['cta'])): ?>
+                <a href="<?= e((string) $step0['url']) ?>" target="_blank" rel="noopener"
+                   class="btn btn-sm <?= $step0['state'] === 'active' ? 'btn-gold' : 'btn-outline-secondary' ?>">
+                    <?= e((string) $step0['cta']) ?><i class="fa-solid fa-arrow-up-right-from-square ms-1"></i>
+                </a>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
 

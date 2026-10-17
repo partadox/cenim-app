@@ -24,6 +24,7 @@ $menu = [
     ],
     'Participants' => [
         ['key' => 'authors',       'label' => 'Authors',       'icon' => 'fa-users',          'url' => admin_url('authors.php')],
+        ['key' => 'confirmations', 'label' => 'Confirmations', 'icon' => 'fa-clipboard-check', 'url' => admin_url('confirmations.php')],
         ['key' => 'registrations', 'label' => 'Registrations', 'icon' => 'fa-clipboard-list', 'url' => admin_url('registrations.php')],
         ['key' => 'payments',      'label' => 'Payments',      'icon' => 'fa-money-check-dollar', 'url' => admin_url('payments.php')],
         ['key' => 'attendance',    'label' => 'Presentations', 'icon' => 'fa-person-chalkboard',     'url' => admin_url('attendance.php')],

@@ -18,9 +18,12 @@
  * @var array|null $studentProof
  * @var array|null $ieeeProof
  * @var int    $includedPages
+ * @var array|null $confirmation  confirmation form (form 0) paper ini
  */
 
 use Cenim\Core\Csrf;
+use Cenim\Domain\AuthorRepo;
+use Cenim\Domain\ConfirmationRepo;
 use Cenim\Domain\FileRepo;
 use Cenim\Domain\RegistrationRepo;
 
@@ -124,6 +127,20 @@ $attendeeRow = static function (string $i, array $row) use ($paperAuthors, $disa
     </div>
 <?php endif; ?>
 
+<?php if ($confirmation !== null): ?>
+    <div class="alert alert-light border py-2 px-3 mb-3" style="font-size:12.5px">
+        <i class="fa-solid fa-clipboard-check me-1" style="color:var(--cn-navy)"></i>
+        From your confirmation form: <b><?= e(ConfirmationRepo::summary($confirmation)) ?></b>.
+        <?php if (ConfirmationRepo::shirts($confirmation) !== []): ?>
+            Shirt sizes: <?= e(implode(', ', ConfirmationRepo::shirts($confirmation))) ?>.
+        <?php endif; ?>
+        <?php if ((string) $confirmation['presentation_mode'] === 'offline' && (int) $confirmation['attendees'] > 1): ?>
+            Add the <?= (int) $confirmation['attendees'] - 1 ?> non-presenter<?= (int) $confirmation['attendees'] > 2 ? 's' : '' ?> in step 4.
+        <?php endif; ?>
+        <a href="<?= e(author_url('confirmation.php')) ?>" target="_blank" rel="noopener">View the confirmation<i class="fa-solid fa-arrow-up-right-from-square ms-1"></i></a>
+    </div>
+<?php endif; ?>
+
 <form method="post" enctype="multipart/form-data" novalidate id="regForm">
     <?= Csrf::field() ?>
 
@@ -167,8 +184,17 @@ $attendeeRow = static function (string $i, array $row) use ($paperAuthors, $disa
 
                         <dt class="col-sm-4 text-muted fw-normal">Total pages</dt>
                         <dd class="col-sm-8 mb-0">
-                            <?= e((string) (int) ($author['total_pages'] ?? 0)) ?>
+                            <?= e((string) AuthorRepo::pages($author)) ?>
                             <span class="text-muted">(<?= e((string) $includedPages) ?> included)</span>
+                            <?php if ((int) ($author['final_pages'] ?? 0) > 0): ?>
+                                <span class="cn-badge cn-badge-verified ms-1">final manuscript</span>
+                                <?php if ((int) $author['final_pages'] !== (int) ($author['total_pages'] ?? 0)): ?>
+                                    <span class="text-muted" style="font-size:12px">&middot; review manuscript: <?= e((string) (int) ($author['total_pages'] ?? 0)) ?></span>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <span class="cn-badge cn-badge-draft ms-1">review manuscript</span>
+                                <div class="text-muted" style="font-size:11.5px">Updated to the final manuscript once the committee has checked it.</div>
+                            <?php endif; ?>
                         </dd>
                     </dl>
                     <div class="form-text mt-2" style="font-size:11.5px">

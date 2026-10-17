@@ -36,7 +36,7 @@ final class InvoiceRepo
                     r.ieee_number, r.extra_pages, r.extra_papers, r.status AS registration_status,
                     r.presentation_mode, (SELECT pp.name FROM paper_authors pp WHERE pp.id = r.presenter_id) AS presenter_name,
                     a.id AS author_id, a.paper_id, a.paper_title, a.first_author_name, a.email,
-                    a.affiliation, a.country, a.phone, a.total_pages,
+                    a.affiliation, a.country, a.phone, ' . AuthorRepo::pagesSql() . ' AS total_pages,
                     fc.label AS fee_label, pk.name AS package_name
              FROM invoices i
              JOIN registrations r ON r.id = i.registration_id

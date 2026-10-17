@@ -55,7 +55,8 @@ final class RegistrationRepo
         return Db::one(
             'SELECT r.*,
                     a.paper_id, a.paper_title, a.first_author_name, a.email, a.affiliation,
-                    a.country AS author_country, a.phone, a.total_pages, a.track,
+                    a.country AS author_country, a.phone, ' . AuthorRepo::pagesSql() . ' AS total_pages,
+                    a.total_pages AS review_pages, a.final_pages, a.track,
                     fc.label AS fee_label, fc.code AS fee_code,
                     pk.name AS package_name
              FROM registrations r
@@ -322,7 +323,7 @@ final class RegistrationRepo
             'participant_type' => (string) ($registration['participant_type'] ?? 'presenter'),
             'is_student'       => (int) ($registration['is_student'] ?? 0) === 1,
             'is_ieee_member'   => (int) ($registration['is_ieee_member'] ?? 0) === 1,
-            'total_pages'      => (int) ($author['total_pages'] ?? 0),
+            'total_pages'      => AuthorRepo::pages($author),
             'extra_papers'     => (int) ($registration['extra_papers'] ?? 0),
             'package_id'       => ($registration['package_id'] ?? null) !== null ? (int) $registration['package_id'] : null,
             'discount'         => (float) ($registration['discount'] ?? 0),

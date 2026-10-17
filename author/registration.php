@@ -1,6 +1,6 @@
 <?php
 /**
- * Form 1 — registrasi satu paper:
+ * Form 1 — registrasi satu paper (terbuka setelah confirmation form / form 0):
  *   - presenter (dipilih dari author paper) + mode offline/online
  *   - kategori biaya presenter (student / IEEE) + bukti
  *   - paper tambahan dari first author yang sama → biaya registrasi 50%
@@ -26,6 +26,8 @@ use Cenim\Core\Response;
 use Cenim\Core\Session;
 use Cenim\Core\View;
 use Cenim\Domain\AttendanceRepo;
+use Cenim\Domain\AuthorRepo;
+use Cenim\Domain\ConfirmationRepo;
 use Cenim\Domain\FeeEngine;
 use Cenim\Domain\FileRepo;
 use Cenim\Domain\FormRepo;
@@ -47,7 +49,14 @@ if (edition_is_archive() && RegistrationRepo::findByAuthor((int) $author['id']) 
     Response::redirect(author_url('index.php'));
 }
 
+// Confirmation form (form 0) dulu; registrasi yang sudah dikirim tidak ditahan.
+if (ConfirmationRepo::blocksRegistration($editionId, $author, RegistrationRepo::findByAuthor((int) $author['id']))) {
+    Session::flash('info', 'Please submit the confirmation form first. The registration form opens right after it.');
+    Response::redirect(author_url('confirmation.php'));
+}
+
 $registration = RegistrationRepo::ensureDraft($editionId, $author);
+$confirmation = ConfirmationRepo::findForPaper((int) $author['id']);
 $regId        = (int) $registration['id'];
 $editable     = RegistrationRepo::isEditable($registration);
 $isOpen       = SettingRepo::getBool($editionId, 'registration_open', true) && !edition_is_archive();
@@ -94,6 +103,16 @@ $values = [
     ], RegistrationRepo::attendees($regId)),
     'extra'             => FormRepo::decode($registration['extra_json'] ?? null),
 ];
+
+// Draft yang belum pernah disimpan: mode presentasi (dan ukuran baju presenter) dari confirmation form.
+if ($confirmation !== null && ($registration['updated_at'] ?? null) === null && $editable) {
+    $values['presentation_mode'] = (string) $confirmation['presentation_mode'];
+    // Ukuran baju presenter = orang pertama di confirmation form.
+    $confirmedShirt = ConfirmationRepo::shirts($confirmation)[0] ?? '';
+    if ($shirtOn && $values['presenter_shirt'] === '' && in_array($confirmedShirt, $shirtSizes, true)) {
+        $values['presenter_shirt'] = $confirmedShirt;
+    }
+}
 
 $errors = [];
 
@@ -210,7 +229,7 @@ if (is_post()) {
         'participant_type' => $values['participant_type'],
         'is_student'       => $values['is_student'],
         'is_ieee_member'   => $values['is_ieee_member'],
-        'total_pages'      => (int) ($author['total_pages'] ?? 0),
+        'total_pages'      => AuthorRepo::pages($author),
         'extra_papers'     => 0,
         'package_id'       => $values['package_id'],
         'main_paper_id'    => $mainPaper['paper_id'] ?? null,
@@ -299,7 +318,7 @@ $quote = FeeEngine::quote($editionId, [
     'participant_type' => $values['participant_type'],
     'is_student'       => $values['is_student'],
     'is_ieee_member'   => $values['is_ieee_member'],
-    'total_pages'      => (int) ($author['total_pages'] ?? 0),
+    'total_pages'      => AuthorRepo::pages($author),
     'extra_papers'     => $values['extra_papers'],
     'package_id'       => $values['package_id'],
     'main_paper_id'    => $mainPaperId,
@@ -338,11 +357,12 @@ View::render('author/registration', [
         'rates'         => $rates,
         'attendeeFee'   => FeeEngine::attendeeFee($editionId, $currency),
         'percent'       => FeeEngine::extraPaperPercent($editionId),
-        'extraPages'    => FeeEngine::extraPages($editionId, (int) ($author['total_pages'] ?? 0)),
+        'extraPages'    => FeeEngine::extraPages($editionId, AuthorRepo::pages($author)),
         'extraPageFee'  => FeeEngine::extraPageFee($editionId, $currency),
         'includedPages' => FeeEngine::includedPages($editionId),
     ],
     'studentProof'   => FileRepo::latest('registration', $regId, 'student_proof'),
     'ieeeProof'      => FileRepo::latest('registration', $regId, 'ieee_proof'),
     'includedPages'  => FeeEngine::includedPages($editionId),
+    'confirmation'   => $confirmation,
 ], 'author');

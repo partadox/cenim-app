@@ -81,7 +81,7 @@ switch ($table) {
                 'created_at'        => ['select' => 'a.created_at', 'searchable' => false],
                 'actions'           => ['select' => 'a.id', 'searchable' => false, 'orderable' => false],
             ],
-            'extra_select'  => ['id' => 'a.id', 'track' => 'a.track', 'imported_batch' => 'a.imported_batch'],
+            'extra_select'  => ['id' => 'a.id', 'track' => 'a.track', 'imported_batch' => 'a.imported_batch', 'final_pages' => 'a.final_pages'],
             'where'         => $where,
             'params'        => $params,
             'default_order' => ['paper_id', 'asc'],
@@ -142,7 +142,11 @@ switch ($table) {
                     'paper_title'       => $titleCell,
                     'affiliation'       => e((string) ($row['affiliation'] ?? '')) ?: '<span class="text-muted">&mdash;</span>',
                     'country'           => e((string) ($row['country'] ?? '')) ?: '<span class="text-muted">&mdash;</span>',
-                    'total_pages'       => (int) $row['total_pages'] > 0 ? (string) (int) $row['total_pages'] : '<span class="text-muted">&mdash;</span>',
+                    'total_pages'       => (int) ($row['final_pages'] ?? 0) > 0
+                        ? ((int) $row['final_pages'] !== (int) $row['total_pages']
+                            ? '<span class="text-muted text-decoration-line-through" title="Reviewed manuscript">' . (int) $row['total_pages'] . '</span> '
+                            : '') . '<b title="Final manuscript">' . (int) $row['final_pages'] . '</b>'
+                        : ((int) $row['total_pages'] > 0 ? (string) (int) $row['total_pages'] : '<span class="text-muted">&mdash;</span>'),
                     'is_presenter'      => $presenter,
                     'paper_status'      => '<span class="cn-badge ' . $statusClass . '">' . e(ucfirst((string) $row['paper_status'])) . '</span>',
                     'created_at'        => '<span class="text-muted" style="font-size:12px">' . e(fmt_date((string) $row['created_at'])) . '</span>',

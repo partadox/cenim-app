@@ -146,5 +146,6 @@ View::render('admin/registration_view', [
         [(int) $registration['author_id']]
     ),
     'shirtOn'      => RegistrationRepo::shirtEnabled($editionId),
+    'confirmation' => Cenim\Domain\ConfirmationRepo::findForPaper((int) $registration['author_id']),
     'extraAnswers' => FormRepo::readable($extraFields, FormRepo::decode($registration['extra_json'] ?? null)),
 ], 'admin');

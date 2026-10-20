@@ -129,7 +129,6 @@
                 })
                 .catch(function () { cnToast('Delete failed. Please try again.', 'error'); });
         }
-        });
     });
 })();
 </script>

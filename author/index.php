@@ -30,6 +30,7 @@ use Cenim\Domain\PaymentRepo;
 use Cenim\Domain\ReceiptRepo;
 use Cenim\Domain\RegistrationRepo;
 use Cenim\Domain\SettingRepo;
+use Cenim\Domain\WorkshopRepo;
 
 if (is_post() && input('action') === 'select_paper') {
     Csrf::verify();
@@ -55,6 +56,27 @@ $registration  = $author !== null ? RegistrationRepo::findByAuthor((int) $author
 $isParticipant = ParticipantRepo::isParticipant($author); // peserta non-presenter (bukan paper)
 $status       = (string) ($registration['status'] ?? RegistrationRepo::STATUS_DRAFT);
 $isOpen       = SettingRepo::getBool($editionId, 'registration_open', true) && !edition_is_archive();
+
+// ── Workshop (kartu di atas langkah 0) ──────────────────────────────────────
+$workshopCard = null;
+if ($author !== null && $person !== null && WorkshopRepo::enabled($editionId)
+    && (LoaRepo::isAvailable($author) || $isParticipant)
+    && ($activeWorkshops = WorkshopRepo::all($editionId, true)) !== []) {
+    $joinedWorkshops = WorkshopRepo::joined($editionId, (string) ($person['email'] ?? ''));
+    $workshopPaid    = WorkshopRepo::paymentDone(array_map(static fn (array $p): int => (int) $p['id'], AuthorAuth::papers()));
+    $workshopCard    = [
+        'workshops' => $activeWorkshops,
+        'joined'    => $joinedWorkshops,
+        'open'      => WorkshopRepo::isOpen($editionId),
+        'locked'    => WorkshopRepo::requiresPayment($editionId) && !$workshopPaid,
+        // Sertifikat workshop terbit otomatis setelah tanggal rilis (bila diaktifkan).
+        'certificates' => CertificateRepo::workshopCertificates($editionId, (string) ($person['email'] ?? ''), $released),
+        'archive'   => edition_is_archive(),
+    ];
+    if ($workshopCard['archive'] && $workshopCard['joined'] === []) {
+        $workshopCard = null; // edisi lama: kartu hanya untuk yang pernah ikut (unduh sertifikat)
+    }
+}
 
 // ── Langkah 0: confirmation form ────────────────────────────────────────────
 $confirmation  = $author !== null ? ConfirmationRepo::findForPaper((int) $author['id']) : null;
@@ -373,6 +395,7 @@ View::render('author/dashboard', [
     'certificatesReleased'  => $released,
     'steps'        => $steps,
     'step0'        => $step0,
+    'workshopCard' => $workshopCard,
     'isParticipant' => $isParticipant,
     'guests'       => $guests,
     'guestCertificates' => $guestCertificates,

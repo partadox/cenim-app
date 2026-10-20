@@ -171,6 +171,17 @@ final class AuthorAuth
         ), 'id'));
     }
 
+    /** @return array<int,int> pendaftaran workshop milik email orang ini (semua edisi) */
+    public static function workshopRegistrationIds(): array
+    {
+        $email = self::email();
+        if ($email === null) {
+            return [];
+        }
+
+        return array_map('intval', array_column(Db::all('SELECT id FROM workshop_registrations WHERE email = ?', [$email]), 'id'));
+    }
+
     /** @return array<int,int> */
     public static function committeeIds(): array
     {

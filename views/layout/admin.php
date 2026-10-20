@@ -29,6 +29,7 @@ $menu = [
         ['key' => 'registrations', 'label' => 'Registrations', 'icon' => 'fa-clipboard-list', 'url' => admin_url('registrations.php')],
         ['key' => 'payments',      'label' => 'Payments',      'icon' => 'fa-money-check-dollar', 'url' => admin_url('payments.php')],
         ['key' => 'attendance',    'label' => 'Presentations', 'icon' => 'fa-person-chalkboard',     'url' => admin_url('attendance.php')],
+        ['key' => 'workshops',     'label' => 'Workshops',     'icon' => 'fa-chalkboard-user',     'url' => admin_url('workshops.php')],
     ],
     'Documents' => [
         ['key' => 'invoices',     'label' => 'Invoices',     'icon' => 'fa-file-invoice',        'url' => admin_url('invoices.php')],

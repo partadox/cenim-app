@@ -172,6 +172,12 @@ table.dataTable tbody td { vertical-align: middle; }
 
 .cn-steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
 .cn-steps.cn-steps-4 { grid-template-columns: repeat(4, 1fr); }
+
+/* Titik merah berkedip (penanda baru / perlu perhatian) */
+.cn-blink { position: relative; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #e02424; }
+.cn-blink::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: #e02424; animation: cn-ping 1.4s cubic-bezier(0, 0, .2, 1) infinite; }
+@keyframes cn-ping { 75%, 100% { transform: scale(2.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cn-blink::after { animation: none; } }
 .cn-step {
     background: #fff;
     border: 1px solid var(--cn-border);

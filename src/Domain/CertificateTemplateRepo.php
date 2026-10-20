@@ -73,7 +73,8 @@ final class CertificateTemplateRepo
             'page_size'   => 'A4',
             'orientation' => 'L',
             'fields_json' => json_encode(self::defaultFields($type), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-            'is_active'   => 1,
+            // Workshop tidak selalu ada tiap edisi: diaktifkan admin (Admin → Workshops).
+            'is_active'   => $type === 'workshop' ? 0 : 1,
             'created_at'  => now(),
         ]);
 
@@ -161,6 +162,13 @@ final class CertificateTemplateRepo
     }
 
     /** Simpan nomor induk sertifikat untuk template ini. */
+    /** Aktif/nonaktifkan satu jenis sertifikat (template dibuat bila belum ada). */
+    public static function setActive(int $editionId, string $type, bool $active): void
+    {
+        $template = self::ensure($editionId, $type);
+        Db::update('certificate_templates', ['is_active' => $active ? 1 : 0, 'updated_at' => now()], 'id = :target_id', ['target_id' => (int) $template['id']]);
+    }
+
     public static function setNumberBase(int $id, string $base): void
     {
         Db::update('certificate_templates', [
@@ -212,6 +220,7 @@ final class CertificateTemplateRepo
         $heading = match ($type) {
             'presenter'   => 'CERTIFICATE OF PRESENTATION',
             'participant' => 'CERTIFICATE OF PARTICIPATION',
+            'workshop'    => 'CERTIFICATE OF PARTICIPATION',
             'committee'   => 'CERTIFICATE OF APPRECIATION',
             'award'       => 'CERTIFICATE OF ACHIEVEMENT',
             default       => 'CERTIFICATE OF PUBLICATION',
@@ -226,6 +235,7 @@ final class CertificateTemplateRepo
         $forLine = match ($type) {
             'presenter'   => 'for presenting the paper entitled',
             'participant' => 'for participating in the conference',
+            'workshop'    => 'for participating in the workshop',
             'committee'   => 'for the dedication and contribution as',
             'award'       => 'in recognition of',
             default       => 'as the author of the paper entitled',

@@ -159,7 +159,7 @@ final class AuthorRepo
 
     /**
      * Hapus paper beserta SEMUA datanya: registrasi, peserta tambahan, invoice,
-     * pembayaran, receipt, confirmation form, video, sertifikat, berkas unggahan,
+     * pembayaran, receipt, confirmation form, video, workshop, sertifikat, berkas unggahan,
      * dan PDF tersimpan. Untuk data uji / paper yang dibatalkan.
      */
     public static function purge(int $id): void
@@ -180,6 +180,9 @@ final class AuthorRepo
         Db::transaction(static function () use ($id, $in, $personIds, $guestIds): void {
             Db::run("DELETE FROM certificates WHERE (recipient_ref_type = 'paper_author' AND recipient_ref_id IN (" . $in($personIds) . "))
                      OR (recipient_ref_type = 'registration_attendee' AND recipient_ref_id IN (" . $in($guestIds) . '))');
+            Db::run("DELETE FROM certificates WHERE recipient_ref_type = 'workshop_registration'
+                     AND recipient_ref_id IN (SELECT id FROM workshop_registrations WHERE author_id = ?)", [$id]);
+            Db::run('DELETE FROM workshop_registrations WHERE author_id = ?', [$id]);
             // registrations, invoices, payments, receipts, peserta tambahan, confirmation, video: ON DELETE CASCADE.
             Db::delete('authors', 'id = ?', [$id]);
         });

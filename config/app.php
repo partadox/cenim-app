@@ -56,6 +56,7 @@ return [
         'presenter'   => ['label' => 'Presenter',   'code' => 'PRS'],
         'participant' => ['label' => 'Participant', 'code' => 'PAR'],
         'committee'   => ['label' => 'Committee',   'code' => 'COM'],
+        'workshop'    => ['label' => 'Workshop',    'code' => 'WSH'],
         'award'       => ['label' => 'Award',       'code' => 'AWD'],
     ],
 

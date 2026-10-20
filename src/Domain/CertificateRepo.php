@@ -21,6 +21,7 @@ final class CertificateRepo
     public const TYPE_PRESENTER   = 'presenter';
     public const TYPE_PARTICIPANT = 'participant';
     public const TYPE_COMMITTEE   = 'committee';
+    public const TYPE_WORKSHOP    = 'workshop';
     public const TYPE_AWARD       = 'award';
 
     /** @return array<int,string> */
@@ -165,6 +166,52 @@ final class CertificateRepo
         return Db::all(
             "SELECT * FROM certificates WHERE edition_id = ? AND recipient_ref_type = 'registration_attendee'
              AND recipient_ref_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ') ORDER BY recipient_name',
+            array_merge([$editionId], $ids)
+        );
+    }
+
+    /** Data penerima sertifikat workshop dari satu baris workshop_registrations. */
+    private static function workshopRecipient(array $row): array
+    {
+        return [
+            'recipient_name'        => (string) $row['name'],
+            'recipient_email'       => $row['email'] ?? null,
+            'recipient_affiliation' => $row['affiliation'] ?? null,
+            'recipient_ref_type'    => 'workshop_registration',
+            'recipient_ref_id'      => (int) $row['id'],
+            'subject_title'         => (string) ($row['workshop_title'] ?? ''),
+        ];
+    }
+
+    /**
+     * Sertifikat workshop milik email ini (idempoten): terbit bila tanggal rilis
+     * sertifikat sudah lewat, workshop aktif di edisi ini, dan template aktif.
+     *
+     * @return array<int,array<string,mixed>> sertifikat workshop orang ini
+     */
+    public static function workshopCertificates(int $editionId, string $email, bool $issue): array
+    {
+        $rows = Db::all(
+            'SELECT r.*, w.title AS workshop_title FROM workshop_registrations r JOIN workshops w ON w.id = r.workshop_id
+             WHERE r.edition_id = ? AND r.email = ?',
+            [$editionId, mb_strtolower(trim($email))]
+        );
+        if ($rows === []) {
+            return [];
+        }
+
+        $template = CertificateTemplateRepo::forType($editionId, self::TYPE_WORKSHOP);
+        if ($issue && WorkshopRepo::enabled($editionId) && $template !== null && (int) $template['is_active'] === 1) {
+            foreach ($rows as $row) {
+                self::ensure(self::workshopRecipient($row) + ['edition_id' => $editionId, 'type' => self::TYPE_WORKSHOP]);
+            }
+        }
+
+        $ids = array_map(static fn (array $r): int => (int) $r['id'], $rows);
+
+        return Db::all(
+            "SELECT * FROM certificates WHERE edition_id = ? AND type = 'workshop' AND recipient_ref_type = 'workshop_registration'
+             AND recipient_ref_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ') ORDER BY subject_title',
             array_merge([$editionId], $ids)
         );
     }
@@ -347,6 +394,10 @@ final class CertificateRepo
             return []; // penghargaan hanya diterbitkan manual satu per satu
         }
 
+        if ($type === self::TYPE_WORKSHOP) {
+            return array_map(static fn (array $row): array => self::workshopRecipient($row), WorkshopRepo::registrants($editionId));
+        }
+
         $condition = match ($type) {
             self::TYPE_PARTICIPANT => "r.participant_type = 'non_presenter' AND pa.is_presenter = 1",
             self::TYPE_PRESENTER   => "r.participant_type = 'presenter' AND pa.is_presenter = 1",
@@ -463,8 +514,9 @@ final class CertificateRepo
      * @param array<int,int> $paperAuthorIds
      * @param array<int,int> $committeeIds
      * @param array<int,int> $guestIds  registration_attendees milik registrasi orang ini
+     * @param array<int,int> $workshopIds workshop_registrations milik email orang ini
      */
-    public static function belongsTo(array $certificate, array $paperAuthorIds, array $committeeIds, array $guestIds = []): bool
+    public static function belongsTo(array $certificate, array $paperAuthorIds, array $committeeIds, array $guestIds = [], array $workshopIds = []): bool
     {
         $refId = (int) $certificate['recipient_ref_id'];
 
@@ -472,6 +524,7 @@ final class CertificateRepo
             'paper_author'          => in_array($refId, array_map('intval', $paperAuthorIds), true),
             'committee'             => in_array($refId, array_map('intval', $committeeIds), true),
             'registration_attendee' => in_array($refId, array_map('intval', $guestIds), true),
+            'workshop_registration' => in_array($refId, array_map('intval', $workshopIds), true),
             default                 => false,
         };
     }

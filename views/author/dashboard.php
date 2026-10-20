@@ -17,6 +17,7 @@
  * @var bool       $certificatesReleased
  * @var array      $steps
  * @var array|null $step0         confirmation form, null bila tidak berlaku
+ * @var array|null $workshopCard  workshops, joined, open, locked, certificates, archive — null bila tidak berlaku
  * @var bool       $isParticipant peserta non-presenter (bukan paper)
  * @var array      $guests        orang yang diajak peserta (registration_attendees)
  * @var array      $guestCertificates
@@ -305,6 +306,56 @@ $certificateList = static function (array $items, bool $released, string $from, 
         <div class="alert alert-danger" style="font-size:13px">
             <b><i class="fa-solid fa-circle-exclamation me-1"></i>Correction requested</b>
             <div class="mt-1"><?= nl2br(e((string) $registration['reject_reason'])) ?></div>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($workshopCard !== null): ?>
+        <?php $wsJoined = $workshopCard['joined'] !== []; ?>
+        <div class="cn-step <?= $wsJoined ? 'is-done' : 'is-active' ?> mb-3 d-flex flex-wrap align-items-center gap-3">
+            <div style="flex:1 1 320px">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="cn-step-no">Workshop</span>
+                    <?php if ($wsJoined): ?>
+                        <i class="fa-solid fa-circle-check" style="color:#1a9c62"></i>
+                    <?php else: ?>
+                        <span class="cn-blink" title="New"></span>
+                    <?php endif; ?>
+                </div>
+                <p class="cn-step-title">Workshop Registration</p>
+                <p class="cn-step-note mb-0">
+                    <?php if ($wsJoined): ?>
+                        You are registered for: <b><?= e(implode(', ', array_column($workshopCard['joined'], 'title'))) ?></b>.
+                    <?php else: ?>
+                        <?= e(implode(' and ', array_column($workshopCard['workshops'], 'title'))) ?> at the conference venue.
+                        <?php if ($workshopCard['locked']): ?>
+                            Registration opens once your payment is confirmed.
+                        <?php elseif (!$workshopCard['open']): ?>
+                            Workshop registration is closed.
+                        <?php else: ?>
+                            Choose the workshops you want to join.
+                        <?php endif; ?>
+                    <?php endif; ?>
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <?php foreach ($workshopCard['certificates'] as $certificate): ?>
+                    <?php if (($certificate['revoked_at'] ?? null) === null): ?>
+                        <a class="btn btn-sm btn-gold" target="_blank" rel="noopener" title="<?= e((string) $certificate['subject_title']) ?>"
+                           href="<?= e(author_url('certificate.php?id=' . (int) $certificate['id'] . '&from=papers')) ?>">
+                            <i class="fa-solid fa-certificate me-1"></i>Certificate: <?= e(mb_strimwidth((string) $certificate['subject_title'], 0, 28, '…')) ?>
+                        </a>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+                <a href="<?= e(base_url('workshop.php')) ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">
+                    Workshop details<i class="fa-solid fa-arrow-up-right-from-square ms-1"></i>
+                </a>
+                <?php if (!$workshopCard['archive']): ?>
+                <a href="<?= e(author_url('workshop.php')) ?>" target="_blank" rel="noopener"
+                   class="btn btn-sm <?= $wsJoined || $workshopCard['locked'] || !$workshopCard['open'] ? 'btn-outline-secondary' : 'btn-gold' ?>">
+                    <?= $wsJoined ? 'View or change' : ($workshopCard['locked'] || !$workshopCard['open'] ? 'View' : 'Register') ?><i class="fa-solid fa-arrow-up-right-from-square ms-1"></i>
+                </a>
+                <?php endif; ?>
+            </div>
         </div>
     <?php endif; ?>
 

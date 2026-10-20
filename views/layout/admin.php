@@ -25,6 +25,7 @@ $menu = [
     'Participants' => [
         ['key' => 'authors',       'label' => 'Authors',       'icon' => 'fa-users',          'url' => admin_url('authors.php')],
         ['key' => 'confirmations', 'label' => 'Confirmations', 'icon' => 'fa-clipboard-check', 'url' => admin_url('confirmations.php')],
+        ['key' => 'participants',  'label' => 'Non-presenters', 'icon' => 'fa-id-badge',     'url' => admin_url('participants.php')],
         ['key' => 'registrations', 'label' => 'Registrations', 'icon' => 'fa-clipboard-list', 'url' => admin_url('registrations.php')],
         ['key' => 'payments',      'label' => 'Payments',      'icon' => 'fa-money-check-dollar', 'url' => admin_url('payments.php')],
         ['key' => 'attendance',    'label' => 'Presentations', 'icon' => 'fa-person-chalkboard',     'url' => admin_url('attendance.php')],
@@ -36,6 +37,7 @@ $menu = [
     ],
     'Website' => [
         ['key' => 'content',   'label' => 'Landing Content', 'icon' => 'fa-newspaper',    'url' => admin_url('content.php')],
+        ['key' => 'popup',     'label' => 'Announcement Pop-up', 'icon' => 'fa-bullhorn', 'url' => admin_url('popup.php')],
         ['key' => 'timeline',  'label' => 'Timeline',        'icon' => 'fa-timeline',     'url' => admin_url('timeline.php')],
         ['key' => 'speakers',  'label' => 'Speakers',        'icon' => 'fa-microphone',   'url' => admin_url('speakers.php')],
         ['key' => 'committee', 'label' => 'Committee',       'icon' => 'fa-user-tie',     'url' => admin_url('committee.php')],

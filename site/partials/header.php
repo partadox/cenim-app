@@ -92,7 +92,7 @@
                         <a href="<?= e(base_url('submission.php')) ?>">Submission</a>
                     </li>
                     <li>
-                        <a href="<?= e(author_url()) ?>">Author Portal</a>
+                        <a href="<?= e(author_url()) ?>">Portal</a>
                     </li>
                     <?php if ($guideUrl !== null): ?>
                         <li>
@@ -151,7 +151,7 @@
                         <a href="<?= e(base_url('submission.php')) ?>" class="th-btn style3 d-xl-block d-none"><i class="fas fa-arrow-right me-2"></i> Submission</a>
                         <div class="cn-portal d-none d-xl-block">
                             <button type="button" class="th-btn cn-portal-toggle" aria-haspopup="true" aria-expanded="false">
-                                <i class="fas fa-circle-user me-2"></i>Author Portal<i class="fas fa-chevron-down cn-caret"></i>
+                                <i class="fas fa-circle-user me-2"></i>Portal<i class="fas fa-chevron-down cn-caret"></i>
                             </button>
                             <ul class="cn-portal-menu" role="menu">
                                 <li><a href="<?= e(author_url()) ?>" role="menuitem"><i class="fas fa-right-to-bracket"></i><span>Sign in to the portal<small>Registration, payment, LoA &amp; certificates</small></span></a></li>
@@ -169,7 +169,7 @@
     </header>
     <style>
         .header-button { display: flex; align-items: center; gap: 10px; }
-        /* Dua tombol (Submission + Author Portal) di kanan: rapatkan supaya menu tetap satu baris. */
+        /* Dua tombol (Submission + Portal) di kanan: rapatkan supaya menu tetap satu baris. */
         .header-layout3 .menu-area .header-button .th-btn { padding: 22.5px 24px; }
         .header-layout3 .menu-area .menu-area-wrap { padding: 0 12px 0 20px; }
         .header-layout3 .main-menu > ul { white-space: nowrap; }

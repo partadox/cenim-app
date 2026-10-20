@@ -110,7 +110,12 @@ About Area
                             </div>
                             <div class="year-counter">
                                 <p class="year-counter_text">Conference <span>Edition</span></p>
-                                <div class="year-counter_number"><span class="counter-number"><?= cms_text('about.edition_number') ?></span></div>
+                                <?php $cnEdition = trim(html_entity_decode(cms_text('about.edition_number'))); ?>
+                                <style>
+                                    .story-img-box1 .year-counter .year-counter_number { white-space: nowrap; }
+                                    .year-counter_number .cn-ordinal { font-size: .4em; margin-left: 2px; vertical-align: top; position: relative; top: .3em; }
+                                </style>
+                                <div class="year-counter_number"><span class="counter-number"><?= e($cnEdition) ?></span><?php if (ctype_digit($cnEdition)): ?><span class="cn-ordinal"><?= e(ordinal_suffix((int) $cnEdition)) ?></span><?php endif; ?></div>
                             </div>
                         </div>
                     </div>
@@ -250,7 +255,19 @@ $rowTwo   = array_slice($timeline, $half);
                 </div>
             </div>
             <div class="campaign-wrap1">
-                <section class="schedule-wrapper">
+                <?php
+                // Ruang di bawah tiap baris mengikuti label tertinggi (tanggal yang di-extend
+                // berbaris-baris), supaya baris 1 tidak menutupi baris 2. Perkiraan di server,
+                // lalu diukur ulang di browser.
+                $cnRowPad = static function (array $items): int {
+                    $lines = 1;
+                    foreach ($items as $item) {
+                        $lines = max($lines, count(Cenim\Domain\TimelineRepo::history($item)) + 1 + (trim((string) ($item['note'] ?? '')) !== '' ? 1 : 0));
+                    }
+                    return max(130, 72 + 30 + $lines * 22 + 28);
+                };
+                ?>
+                <section class="schedule-wrapper" id="cnSchedule" style="--ps-row1: <?= $cnRowPad($rowOne) ?>px; --ps-row2: <?= $cnRowPad($rowTwo) ?>px;">
                     <div class="container">
                         <?php if ($timeline === []): ?>
                             <p class="text-center">The schedule will be announced soon.</p>
@@ -295,6 +312,35 @@ $rowTwo   = array_slice($timeline, $half);
                         <?php endif; ?>
                     </div>
                 </section>
+                <style>
+                    @media (min-width: 768px) {
+                        #cnSchedule .ps-row-wrap:first-child { padding-bottom: var(--ps-row1, 130px); }
+                        #cnSchedule .ps-row-wrap:last-child  { padding-bottom: var(--ps-row2, 130px); }
+                        #cnSchedule .ps-snake-connector::before { top: calc(-1 * var(--ps-row1, 130px)); height: calc(var(--ps-row1, 130px) + 40px); }
+                    }
+                </style>
+                <script>
+                (function () {
+                    var box = document.getElementById('cnSchedule');
+                    if (!box) { return; }
+                    function fit() {
+                        if (window.innerWidth < 768) { return; }
+                        box.querySelectorAll('.ps-row-wrap').forEach(function (row, i) {
+                            var ol = row.querySelector('ol');
+                            var need = 0;
+                            row.querySelectorAll('.ps-label').forEach(function (label) {
+                                need = Math.max(need, label.offsetTop + label.offsetHeight);
+                            });
+                            if (ol && need > 0) {
+                                box.style.setProperty(i === 0 ? '--ps-row1' : '--ps-row2', Math.max(130, need + 36) + 'px');
+                            }
+                        });
+                    }
+                    window.addEventListener('load', fit);
+                    window.addEventListener('resize', fit);
+                    fit();
+                })();
+                </script>
             </div>
         </div>
     </div>

@@ -21,6 +21,7 @@ use Cenim\Core\Response;
 use Cenim\Core\View;
 use Cenim\Domain\LoaRepo;
 use Cenim\Domain\PaperAuthorRepo;
+use Cenim\Domain\ParticipantRepo;
 use Cenim\Domain\AttendanceRepo;
 use Cenim\Domain\CertificateRepo;
 use Cenim\Domain\ConfirmationRepo;
@@ -50,7 +51,8 @@ if ($author === null && $committee === []) {
     Response::redirect(author_url('login.php'));
 }
 
-$registration = $author !== null ? RegistrationRepo::findByAuthor((int) $author['id']) : null;
+$registration  = $author !== null ? RegistrationRepo::findByAuthor((int) $author['id']) : null;
+$isParticipant = ParticipantRepo::isParticipant($author); // peserta non-presenter (bukan paper)
 $status       = (string) ($registration['status'] ?? RegistrationRepo::STATUS_DRAFT);
 $isOpen       = SettingRepo::getBool($editionId, 'registration_open', true) && !edition_is_archive();
 
@@ -120,9 +122,11 @@ $step1 = $confirmBlocks && $status === RegistrationRepo::STATUS_DRAFT ? [
         ]
         : [
             'state' => 'active',
-            'note'  => $isOpen
-                ? 'Choose the presenter, the registration category and any additional attendees.'
-                : 'Registration is currently closed.',
+            'note'  => !$isOpen
+                ? 'Registration is currently closed.'
+                : ($isParticipant
+                    ? 'Confirm your attendance and add the people who will come with you.'
+                    : 'Choose the presenter, the registration category and any additional attendees.'),
             'cta'   => 'Open the form',
         ],
 };
@@ -291,7 +295,7 @@ $steps = [
         'url'   => $step4['url'],
         'cta'   => $step4['cta'],
     ],
-    [
+    $isParticipant ? null : [
         'no'    => 5,
         'title' => 'Video Presentation Form',
         'icon'  => 'fa-video',
@@ -302,6 +306,8 @@ $steps = [
         'filled_by' => $attendance['filled_by_name'] ?? null,
     ],
 ];
+
+$steps = array_values(array_filter($steps));
 
 // ── Sertifikat: terbit otomatis setelah tanggal rilis (idempoten) ────────────
 // Semua author paper ini, supaya satu author bisa mengunduhkan sertifikat rekannya.
@@ -318,6 +324,16 @@ if ($author !== null) {
         }
     }
     $certificates = CertificateRepo::forPaperAuthors($editionId, array_column($paperAuthors, 'id'));
+}
+
+// Peserta non-presenter: orang yang diajak juga mendapat sertifikat Participant.
+$guests = $isParticipant && $registration !== null ? RegistrationRepo::attendees((int) $registration['id']) : [];
+$guestCertificates = [];
+if ($guests !== []) {
+    if ($released) {
+        CertificateRepo::ensureForGuests($editionId, $registration, $invoice);
+    }
+    $guestCertificates = CertificateRepo::forGuests($editionId, array_column($guests, 'id'));
 }
 
 // Peran panitia bisa dari beberapa edisi; tiap edisi punya template & tanggal rilis sendiri.
@@ -338,7 +354,7 @@ foreach ($byEdition as $rowEditionId => $rows) {
 }
 
 View::render('author/dashboard', [
-    'title'        => $author !== null ? 'Author Area' : 'Committee Area',
+    'title'        => $author === null ? 'Committee Area' : ($isParticipant ? 'Participant Area' : 'Author Area'),
     'edition'      => $edition,
     'author'       => $author,
     'person'       => $person,
@@ -357,4 +373,7 @@ View::render('author/dashboard', [
     'certificatesReleased'  => $released,
     'steps'        => $steps,
     'step0'        => $step0,
+    'isParticipant' => $isParticipant,
+    'guests'       => $guests,
+    'guestCertificates' => $guestCertificates,
 ], 'author');

@@ -84,6 +84,7 @@ if (is_post()) {
     $confirmationDeadline = trim((string) input('confirmation_deadline', ''));
     SettingRepo::set($editionId, 'confirmation_deadline', preg_match('/^\d{4}-\d{2}-\d{2}$/', $confirmationDeadline) === 1 ? $confirmationDeadline : '');
     SettingRepo::set($editionId, 'registration_open', input_bool('registration_open'));
+    SettingRepo::set($editionId, 'participant_registration_open', input_bool('participant_registration_open'));
     SettingRepo::set($editionId, 'payment_open', input_bool('payment_open'));
     SettingRepo::set($editionId, 'attendance_open', input_bool('attendance_open'));
     $attendanceDeadline = trim((string) input('attendance_deadline', ''));
@@ -187,6 +188,7 @@ View::render('admin/settings', [
         'confirmation_required' => SettingRepo::getBool($editionId, 'confirmation_required', true),
         'confirmation_deadline' => SettingRepo::getString($editionId, 'confirmation_deadline'),
         'registration_open'   => SettingRepo::getBool($editionId, 'registration_open', true),
+        'participant_registration_open' => Cenim\Domain\ParticipantRepo::registrationOpen($editionId),
         'payment_open'        => SettingRepo::getBool($editionId, 'payment_open', true),
         'attendance_open'     => SettingRepo::getBool($editionId, 'attendance_open', true),
         'attendance_deadline' => SettingRepo::getString($editionId, 'attendance_deadline'),

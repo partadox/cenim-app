@@ -50,8 +50,9 @@ final class ConfirmationRepo
     /** Registration form menunggu confirmation form? (Settings → confirmation_required) */
     public static function blocksRegistration(int $editionId, array $paper, ?array $registration): bool
     {
-        if (!SettingRepo::getBool($editionId, 'confirmation_required', true)) {
-            return false;
+        if (!SettingRepo::getBool($editionId, 'confirmation_required', true)
+            || (string) ($paper['paper_status'] ?? '') !== 'accepted') {
+            return false; // hanya paper accepted (bukan peserta non-presenter)
         }
 
         // Registrasi yang sudah pernah dikirim (sebelum form ini ada) tidak ditahan.

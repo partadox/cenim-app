@@ -118,6 +118,57 @@ final class CertificateRepo
         }
     }
 
+    /**
+     * Sertifikat Participant untuk orang yang diajak (keranjang registrasi, bukan
+     * author) — idempoten, hanya bila registrasinya lunas dan template aktif.
+     */
+    public static function ensureForGuests(int $editionId, ?array $registration, ?array $invoice): void
+    {
+        if ($registration === null || $invoice === null || (string) $invoice['status'] !== InvoiceRepo::STATUS_PAID) {
+            return;
+        }
+        $template = CertificateTemplateRepo::forType($editionId, self::TYPE_PARTICIPANT);
+        if ($template === null || (int) $template['is_active'] !== 1) {
+            return;
+        }
+
+        foreach (RegistrationRepo::attendees((int) $registration['id']) as $guest) {
+            if ($guest['paper_author_id'] !== null) {
+                continue;
+            }
+            self::ensure([
+                'edition_id'            => $editionId,
+                'type'                  => self::TYPE_PARTICIPANT,
+                'recipient_name'        => (string) $guest['name'],
+                'recipient_email'       => $guest['email'] ?? null,
+                'recipient_affiliation' => $guest['affiliation'] ?? null,
+                'recipient_ref_type'    => 'registration_attendee',
+                'recipient_ref_id'      => (int) $guest['id'],
+                'subject_title'         => null,
+            ]);
+        }
+    }
+
+    /**
+     * Sertifikat untuk baris registration_attendees tertentu.
+     *
+     * @param array<int,int> $attendeeIds
+     * @return array<int,array<string,mixed>>
+     */
+    public static function forGuests(int $editionId, array $attendeeIds): array
+    {
+        $ids = array_values(array_filter(array_map('intval', $attendeeIds)));
+        if ($ids === []) {
+            return [];
+        }
+
+        return Db::all(
+            "SELECT * FROM certificates WHERE edition_id = ? AND recipient_ref_type = 'registration_attendee'
+             AND recipient_ref_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ') ORDER BY recipient_name',
+            array_merge([$editionId], $ids)
+        );
+    }
+
     /** Sertifikat committee untuk baris-baris panitia milik seseorang (idempoten). */
     public static function ensureForCommittee(int $editionId, array $committeeRows): void
     {
@@ -411,15 +462,17 @@ final class CertificateRepo
      *
      * @param array<int,int> $paperAuthorIds
      * @param array<int,int> $committeeIds
+     * @param array<int,int> $guestIds  registration_attendees milik registrasi orang ini
      */
-    public static function belongsTo(array $certificate, array $paperAuthorIds, array $committeeIds): bool
+    public static function belongsTo(array $certificate, array $paperAuthorIds, array $committeeIds, array $guestIds = []): bool
     {
         $refId = (int) $certificate['recipient_ref_id'];
 
         return match ((string) $certificate['recipient_ref_type']) {
-            'paper_author' => in_array($refId, array_map('intval', $paperAuthorIds), true),
-            'committee'    => in_array($refId, array_map('intval', $committeeIds), true),
-            default        => false,
+            'paper_author'          => in_array($refId, array_map('intval', $paperAuthorIds), true),
+            'committee'             => in_array($refId, array_map('intval', $committeeIds), true),
+            'registration_attendee' => in_array($refId, array_map('intval', $guestIds), true),
+            default                 => false,
         };
     }
 

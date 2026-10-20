@@ -26,29 +26,29 @@ $stats = [
 
 // ── Statistik paper & author (per orang = email unik, atau nama bila tanpa email) ──
 $person  = "COALESCE(NULLIF(LOWER(TRIM(pa.email)), ''), LOWER(TRIM(pa.name)))";
-$papers  = Db::all('SELECT paper_status, COUNT(*) AS n FROM authors WHERE edition_id = ? GROUP BY paper_status', [$editionId]);
+$papers  = Db::all("SELECT paper_status, COUNT(*) AS n FROM authors WHERE edition_id = ? AND paper_status != 'attendee' GROUP BY paper_status", [$editionId]);
 $byStatus = array_column($papers, 'n', 'paper_status');
 
 $stats += [
     'papers'          => array_sum(array_map('intval', $byStatus)),
     'accepted'        => (int) ($byStatus['accepted'] ?? 0),
     'paper_statuses'  => $byStatus,
-    'people'          => (int) Db::value("SELECT COUNT(DISTINCT $person) FROM paper_authors pa WHERE pa.edition_id = ?", [$editionId]),
-    'author_slots'    => (int) Db::value('SELECT COUNT(*) FROM paper_authors WHERE edition_id = ?', [$editionId]),
-    'no_email'        => (int) Db::value("SELECT COUNT(*) FROM paper_authors WHERE edition_id = ? AND (email IS NULL OR email = '')", [$editionId]),
-    'countries'       => (int) Db::value("SELECT COUNT(DISTINCT LOWER(TRIM(country))) FROM paper_authors WHERE edition_id = ? AND TRIM(IFNULL(country, '')) != ''", [$editionId]),
-    'affiliations'    => (int) Db::value("SELECT COUNT(DISTINCT LOWER(TRIM(affiliation))) FROM paper_authors WHERE edition_id = ? AND TRIM(IFNULL(affiliation, '')) != ''", [$editionId]),
+    'people'          => (int) Db::value("SELECT COUNT(DISTINCT $person) FROM paper_authors pa WHERE pa.edition_id = ? AND pa.author_id NOT IN (SELECT id FROM authors WHERE paper_status = 'attendee')", [$editionId]),
+    'author_slots'    => (int) Db::value("SELECT COUNT(*) FROM paper_authors WHERE edition_id = ? AND author_id NOT IN (SELECT id FROM authors WHERE paper_status = 'attendee')", [$editionId]),
+    'no_email'        => (int) Db::value("SELECT COUNT(*) FROM paper_authors WHERE edition_id = ? AND author_id NOT IN (SELECT id FROM authors WHERE paper_status = 'attendee') AND (email IS NULL OR email = '')", [$editionId]),
+    'countries'       => (int) Db::value("SELECT COUNT(DISTINCT LOWER(TRIM(country))) FROM paper_authors WHERE edition_id = ? AND author_id NOT IN (SELECT id FROM authors WHERE paper_status = 'attendee') AND TRIM(IFNULL(country, '')) != ''", [$editionId]),
+    'affiliations'    => (int) Db::value("SELECT COUNT(DISTINCT LOWER(TRIM(affiliation))) FROM paper_authors WHERE edition_id = ? AND author_id NOT IN (SELECT id FROM authors WHERE paper_status = 'attendee') AND TRIM(IFNULL(affiliation, '')) != ''", [$editionId]),
 ];
 
 $byCountry = Db::all(
     "SELECT TRIM(pa.country) AS label, COUNT(DISTINCT $person) AS people, COUNT(DISTINCT pa.author_id) AS papers
-     FROM paper_authors pa WHERE pa.edition_id = ? AND TRIM(IFNULL(pa.country, '')) != ''
+     FROM paper_authors pa WHERE pa.edition_id = ? AND pa.author_id NOT IN (SELECT id FROM authors WHERE paper_status = 'attendee') AND TRIM(IFNULL(pa.country, '')) != ''
      GROUP BY LOWER(TRIM(pa.country)) ORDER BY people DESC, label LIMIT 12",
     [$editionId]
 );
 $byAffiliation = Db::all(
     "SELECT TRIM(pa.affiliation) AS label, COUNT(DISTINCT $person) AS people, COUNT(DISTINCT pa.author_id) AS papers
-     FROM paper_authors pa WHERE pa.edition_id = ? AND TRIM(IFNULL(pa.affiliation, '')) != ''
+     FROM paper_authors pa WHERE pa.edition_id = ? AND pa.author_id NOT IN (SELECT id FROM authors WHERE paper_status = 'attendee') AND TRIM(IFNULL(pa.affiliation, '')) != ''
      GROUP BY LOWER(TRIM(pa.affiliation)) ORDER BY people DESC, label LIMIT 12",
     [$editionId]
 );

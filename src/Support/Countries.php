@@ -290,6 +290,22 @@ final class Countries
         'ZW' => 'Zimbabwe',
     ];
 
+    /** Kode lama (sudah tidak dipakai) yang tidak ditawarkan di pilihan negara. */
+    private const RETIRED = ['AN', 'YD', 'YU', 'ZR', 'AC'];
+
+    /**
+     * Daftar nama negara untuk pilihan di form, urut abjad.
+     *
+     * @return array<int,string>
+     */
+    public static function all(): array
+    {
+        $names = array_values(array_unique(array_values(array_diff_key(self::NAMES, array_flip(self::RETIRED)))));
+        sort($names, SORT_STRING | SORT_FLAG_CASE);
+
+        return $names;
+    }
+
     /** Nama negara, atau null bila kodenya tidak dikenal. */
     public static function name(string $code): ?string
     {

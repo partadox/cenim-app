@@ -69,7 +69,7 @@ $status = (string) ($registration['status'] ?? RegistrationRepo::STATUS_DRAFT);
                                 ? e(fmt_date((string) $invoice['due_date'] . ' 00:00:00'))
                                 : '<span class="text-muted">as soon as possible</span>' ?>
                         </dd>
-                        <dt class="col-sm-4 text-muted fw-normal">Paper</dt>
+                        <dt class="col-sm-4 text-muted fw-normal"><?= Cenim\Domain\ParticipantRepo::isParticipant($author) ? 'Participant' : 'Paper' ?></dt>
                         <dd class="col-sm-8 mb-0"><code><?= e((string) $author['paper_id']) ?></code></dd>
                     </dl>
 

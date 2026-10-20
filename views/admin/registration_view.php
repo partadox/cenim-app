@@ -28,6 +28,8 @@ $purposeLabels = [
     'student_proof' => 'Student proof',
     'ieee_proof'    => 'IEEE membership proof',
 ];
+
+$isParticipantReg = str_starts_with((string) $registration['paper_id'], Cenim\Domain\ParticipantRepo::PREFIX);
 ?>
 
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
@@ -70,15 +72,17 @@ $purposeLabels = [
         <div class="cn-card mb-3">
             <div class="cn-card-head">
                 <i class="fa-solid fa-user text-muted"></i>
-                <h2>Author &amp; paper</h2>
+                <h2><?= $isParticipantReg ? 'Participant (non-presenter, no paper)' : 'Author &amp; paper' ?></h2>
             </div>
             <div class="cn-card-body">
                 <dl class="row mb-0" style="font-size:13px">
                     <dt class="col-sm-4 text-muted fw-normal">Paper ID</dt>
                     <dd class="col-sm-8"><code><?= e((string) $registration['paper_id']) ?></code></dd>
 
+                    <?php if (!$isParticipantReg): ?>
                     <dt class="col-sm-4 text-muted fw-normal">Title</dt>
                     <dd class="col-sm-8"><?= e((string) ($registration['paper_title'] ?? '—')) ?></dd>
+                    <?php endif; ?>
 
                     <dt class="col-sm-4 text-muted fw-normal">First author</dt>
                     <dd class="col-sm-8"><?= e((string) $registration['first_author_name']) ?></dd>
@@ -132,7 +136,12 @@ $purposeLabels = [
                 <dl class="row mb-0" style="font-size:13px">
                     <dt class="col-sm-4 text-muted fw-normal">Presenter</dt>
                     <dd class="col-sm-8">
-                        <?php if ($registration['participant_type'] === 'non_presenter'): ?>
+                        <?php if ($isParticipantReg): ?>
+                            <b><?= e((string) ($presenter['name'] ?? '—')) ?></b> <span class="text-muted">attends as a non-presenter (offline)</span>
+                            <?php if (($registration['presenter_shirt'] ?? '') !== ''): ?>
+                                <span class="cn-badge cn-badge-draft ms-1" title="Shirt size"><i class="fa-solid fa-shirt me-1"></i><?= e((string) $registration['presenter_shirt']) ?></span>
+                            <?php endif; ?>
+                        <?php elseif ($registration['participant_type'] === 'non_presenter'): ?>
                             Non-presenter registration (old form)
                         <?php else: ?>
                             <b><?= e((string) ($presenter['name'] ?? '—')) ?></b>

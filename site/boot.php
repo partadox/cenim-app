@@ -59,6 +59,8 @@ function site_page(string $page): void
         Cenim\Core\Response::abort(404, 'Page not found.');
     }
 
+    $GLOBALS['cenimSitePage'] = basename($page); // dipakai footer (pop-up pengumuman)
+
     ob_start();
     include $file;
     echo site_fix_asset_paths((string) ob_get_clean());

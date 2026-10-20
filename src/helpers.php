@@ -33,6 +33,22 @@ function is_local(): bool
     return env('APP_ENV') === 'local';
 }
 
+/** Akhiran urutan bahasa Inggris: 1 → "st", 2 → "nd", 7 → "th", 11 → "th", 22 → "nd". */
+function ordinal_suffix(int $n): string
+{
+    $n = abs($n);
+    if (in_array($n % 100, [11, 12, 13], true)) {
+        return 'th';
+    }
+
+    return match ($n % 10) {
+        1       => 'st',
+        2       => 'nd',
+        3       => 'rd',
+        default => 'th',
+    };
+}
+
 /** Escape untuk output HTML. Wajib dipakai di semua view. */
 function e(mixed $value): string
 {

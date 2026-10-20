@@ -88,9 +88,10 @@ final class InvoicePdf extends PdfBase
             [
                 'title' => 'Registration',
                 'lines' => [
-                    'Paper ' . $invoice['paper_id'],
-                    (string) ($invoice['paper_title'] ?? ''),
-                    ($invoice['presenter_name'] ?? '') !== ''
+                    ...(str_starts_with((string) $invoice['paper_id'], \Cenim\Domain\ParticipantRepo::PREFIX)
+                        ? ['Participant ' . $invoice['paper_id'], 'Attendance at the venue (non-presenter)']
+                        : ['Paper ' . $invoice['paper_id'], (string) ($invoice['paper_title'] ?? '')]),
+                    ($invoice['presenter_name'] ?? '') !== '' && (string) $invoice['participant_type'] !== 'non_presenter'
                         ? 'Presenter: ' . $invoice['presenter_name'] . ' (' . ($invoice['presentation_mode'] ?? 'offline') . ')'
                         : $participant,
                     $category,

@@ -92,9 +92,14 @@
         }).then(function (result) {
             if (!result.isConfirmed) { return; }
 
+            send(false);
+        });
+
+        function send(force) {
             var body = new FormData();
             body.append('id', button.dataset.id);
             body.append('csrf_token', window.CENIM.csrf);
+            if (force) { body.append('force', '1'); }
 
             fetch(window.CENIM.adminUrl + 'author-delete.php', {
                 method: 'POST',
@@ -106,11 +111,24 @@
                     if (json.ok) {
                         cnToast(json.message || 'Author deleted.', 'success');
                         table.ajax.reload(null, false);
+                    } else if (json.needs_confirm) {
+                        // Paper sudah punya registrasi/invoice: konfirmasi kedua sebelum semuanya dihapus.
+                        Swal.fire({
+                            title: 'Delete the paper and all its data?',
+                            html: '<span style="font-size:13px">' + json.summary + '</span>'
+                                + '<br><br><b style="font-size:13px;color:#a3231f">This cannot be undone.</b>',
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonText: 'Delete everything',
+                            confirmButtonColor: '#a3231f',
+                            cancelButtonText: 'Cancel'
+                        }).then(function (again) { if (again.isConfirmed) { send(true); } });
                     } else {
                         cnToast(json.error || 'Delete failed.', 'error');
                     }
                 })
                 .catch(function () { cnToast('Delete failed. Please try again.', 'error'); });
+        }
         });
     });
 })();

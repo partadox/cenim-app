@@ -71,4 +71,5 @@ View::render('author/login', [
     'showCaptcha' => Turnstile::enabled(),
     'contact'     => $edition !== null ? SettingRepo::getString((int) $edition['id'], 'contact_email') : '',
     'guideUrl'    => user_guide_url((int) ($edition['id'] ?? 0)),
+    'participantOpen' => $edition !== null && Cenim\Domain\ParticipantRepo::registrationOpen((int) $edition['id']),
 ], 'auth');

@@ -160,7 +160,7 @@ final class AttendanceRepo
              JOIN invoices i ON i.registration_id = r.id AND i.status = '" . InvoiceRepo::STATUS_PAID . "'
              LEFT JOIN paper_authors pa ON pa.id = r.presenter_id
              LEFT JOIN attendances t ON t.author_id = a.id
-             WHERE a.edition_id = ?
+             WHERE a.edition_id = ? AND a.paper_status != 'attendee'
              ORDER BY a.paper_id",
             [$editionId]
         );

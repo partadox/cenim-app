@@ -151,6 +151,26 @@ final class AuthorAuth
         ), 'id'));
     }
 
+    /**
+     * Orang yang diajak (registration_attendees) pada registrasi paper/peserta
+     * milik orang ini — sertifikat Participant mereka boleh diunduhkan.
+     *
+     * @return array<int,int>
+     */
+    public static function guestIds(): array
+    {
+        $paperIds = array_map(static fn (array $p): int => (int) $p['id'], self::papers());
+        if ($paperIds === []) {
+            return [];
+        }
+
+        return array_map('intval', array_column(Db::all(
+            'SELECT ra.id FROM registration_attendees ra JOIN registrations r ON r.id = ra.registration_id
+             WHERE r.author_id IN (' . implode(',', array_fill(0, count($paperIds), '?')) . ')',
+            $paperIds
+        ), 'id'));
+    }
+
     /** @return array<int,int> */
     public static function committeeIds(): array
     {
@@ -230,9 +250,9 @@ final class AuthorAuth
             RateLimit::record(self::LOOKUP_KIND, client_ip(), false);
             Audit::log('author.code_unknown_email', ['actor_type' => 'system', 'meta' => ['email' => $email]]);
 
-            return 'The email ' . $email . ' is not registered as an author or committee member of '
-                . 'any CENIM edition. Please use the email listed in your paper submission or committee data, '
-                . 'or contact the secretariat.';
+            return 'The email ' . $email . ' is not registered as an author, committee member or participant of '
+                . 'any CENIM edition. Please use the email listed in your paper submission or committee data. '
+                . 'Not an author? Register as a participant (non-presenter) below.';
         }
 
         $wait = LoginCode::waitSeconds($email);

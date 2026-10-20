@@ -32,6 +32,7 @@ use Cenim\Domain\FeeEngine;
 use Cenim\Domain\FileRepo;
 use Cenim\Domain\FormRepo;
 use Cenim\Domain\PaperAuthorRepo;
+use Cenim\Domain\ParticipantRepo;
 use Cenim\Domain\RegistrationRepo;
 use Cenim\Domain\SettingRepo;
 
@@ -47,6 +48,13 @@ if ($editionId === 0 || $author === null) {
 if (edition_is_archive() && RegistrationRepo::findByAuthor((int) $author['id']) === null) {
     Session::flash('info', ($edition['name'] ?? 'This edition') . ' has ended; this paper was not registered.');
     Response::redirect(author_url('index.php'));
+}
+
+// Peserta non-presenter (bukan paper): form sendiri yang lebih sederhana.
+if (ParticipantRepo::isParticipant($author)) {
+    define('CENIM_PARTICIPANT_REGISTRATION', true);
+    require __DIR__ . '/_registration_participant.php';
+    exit;
 }
 
 // Confirmation form (form 0) dulu; registrasi yang sudah dikirim tidak ditahan.

@@ -134,9 +134,69 @@ final class AuthorRepo
         Db::delete('authors', 'id = ?', [$id]);
     }
 
+    /**
+     * Ringkasan data turunan paper (untuk peringatan sebelum dihapus).
+     *
+     * @return array{registration:?string, invoices:int, payments:int, receipts:int, certificates:int}
+     */
+    public static function dependents(int $id): array
+    {
+        $reg = Db::one('SELECT id, status FROM registrations WHERE author_id = ?', [$id]);
+        $regId = (int) ($reg['id'] ?? 0);
+
+        return [
+            'registration' => $reg !== null ? (string) $reg['status'] : null,
+            'invoices'     => (int) Db::value('SELECT COUNT(*) FROM invoices WHERE registration_id = ?', [$regId]),
+            'payments'     => (int) Db::value('SELECT COUNT(*) FROM payments p JOIN invoices i ON i.id = p.invoice_id WHERE i.registration_id = ?', [$regId]),
+            'receipts'     => (int) Db::value('SELECT COUNT(*) FROM receipts r JOIN invoices i ON i.id = r.invoice_id WHERE i.registration_id = ?', [$regId]),
+            'certificates' => (int) Db::value(
+                "SELECT COUNT(*) FROM certificates WHERE (recipient_ref_type = 'paper_author' AND recipient_ref_id IN (SELECT id FROM paper_authors WHERE author_id = ?))
+                 OR (recipient_ref_type = 'registration_attendee' AND recipient_ref_id IN (SELECT id FROM registration_attendees WHERE registration_id = ?))",
+                [$id, $regId]
+            ),
+        ];
+    }
+
+    /**
+     * Hapus paper beserta SEMUA datanya: registrasi, peserta tambahan, invoice,
+     * pembayaran, receipt, confirmation form, video, sertifikat, berkas unggahan,
+     * dan PDF tersimpan. Untuk data uji / paper yang dibatalkan.
+     */
+    public static function purge(int $id): void
+    {
+        $regIds     = array_map('intval', array_column(Db::all('SELECT id FROM registrations WHERE author_id = ?', [$id]), 'id'));
+        $in         = static fn (array $ids): string => $ids === [] ? '0' : implode(',', array_map('intval', $ids));
+        $invoices   = Db::all('SELECT id, pdf_cache FROM invoices WHERE registration_id IN (' . $in($regIds) . ')');
+        $invoiceIds = array_map('intval', array_column($invoices, 'id'));
+        $paymentIds = array_map('intval', array_column(Db::all('SELECT id FROM payments WHERE invoice_id IN (' . $in($invoiceIds) . ')'), 'id'));
+        $receipts   = Db::all('SELECT pdf_cache FROM receipts WHERE invoice_id IN (' . $in($invoiceIds) . ')');
+        $personIds  = array_map('intval', array_column(Db::all('SELECT id FROM paper_authors WHERE author_id = ?', [$id]), 'id'));
+        $guestIds   = array_map('intval', array_column(Db::all('SELECT id FROM registration_attendees WHERE registration_id IN (' . $in($regIds) . ')'), 'id'));
+        $fileIds    = array_map('intval', array_column(Db::all(
+            "SELECT id FROM files WHERE deleted_at IS NULL AND ((owner_type = 'registration' AND owner_id IN (" . $in($regIds) . "))
+             OR (owner_type = 'payment' AND owner_id IN (" . $in($paymentIds) . ')))'
+        ), 'id'));
+
+        Db::transaction(static function () use ($id, $in, $personIds, $guestIds): void {
+            Db::run("DELETE FROM certificates WHERE (recipient_ref_type = 'paper_author' AND recipient_ref_id IN (" . $in($personIds) . "))
+                     OR (recipient_ref_type = 'registration_attendee' AND recipient_ref_id IN (" . $in($guestIds) . '))');
+            // registrations, invoices, payments, receipts, peserta tambahan, confirmation, video: ON DELETE CASCADE.
+            Db::delete('authors', 'id = ?', [$id]);
+        });
+
+        foreach ($fileIds as $fileId) {
+            FileRepo::softDelete($fileId);
+        }
+        foreach (array_merge(array_column($invoices, 'pdf_cache'), array_column($receipts, 'pdf_cache')) as $cache) {
+            if (is_string($cache) && $cache !== '' && is_file(storage_path($cache))) {
+                @unlink(storage_path($cache));
+            }
+        }
+    }
+
     public static function countByEdition(int $editionId): int
     {
-        return Db::count('authors', 'edition_id = ?', [$editionId]);
+        return Db::count('authors', "edition_id = ? AND paper_status != 'attendee'", [$editionId]);
     }
 
     /** @return array<int,string> */
@@ -146,7 +206,7 @@ final class AuthorRepo
             static fn (array $row): string => (string) $row['country'],
             Db::all(
                 "SELECT DISTINCT country FROM authors
-                 WHERE edition_id = ? AND country IS NOT NULL AND country != ''
+                 WHERE edition_id = ? AND paper_status != 'attendee' AND country IS NOT NULL AND country != ''
                  ORDER BY country",
                 [$editionId]
             )
@@ -160,7 +220,7 @@ final class AuthorRepo
             static fn (array $row): string => (string) $row['imported_batch'],
             Db::all(
                 "SELECT DISTINCT imported_batch FROM authors
-                 WHERE edition_id = ? AND imported_batch IS NOT NULL AND imported_batch != ''
+                 WHERE edition_id = ? AND paper_status != 'attendee' AND imported_batch IS NOT NULL AND imported_batch != ''
                  ORDER BY imported_batch DESC",
                 [$editionId]
             )
@@ -171,7 +231,7 @@ final class AuthorRepo
     public static function allForExport(int $editionId): array
     {
         return Db::all(
-            'SELECT * FROM authors WHERE edition_id = ? ORDER BY paper_id',
+            "SELECT * FROM authors WHERE edition_id = ? AND paper_status != 'attendee' ORDER BY paper_id",
             [$editionId]
         );
     }

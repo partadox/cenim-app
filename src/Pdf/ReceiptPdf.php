@@ -69,8 +69,9 @@ final class ReceiptPdf extends PdfBase
             [
                 'title' => 'For',
                 'lines' => [
-                    'Paper ' . $receipt['paper_id'],
-                    (string) ($receipt['paper_title'] ?? ''),
+                    ...(str_starts_with((string) $receipt['paper_id'], \Cenim\Domain\ParticipantRepo::PREFIX)
+                        ? ['Participant ' . $receipt['paper_id']]
+                        : ['Paper ' . $receipt['paper_id'], (string) ($receipt['paper_title'] ?? '')]),
                     'Registration fee - ' . ($receipt['participant_type'] === 'non_presenter' ? 'Non-presenter' : 'Presenter'),
                 ],
             ]

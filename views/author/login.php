@@ -12,6 +12,7 @@
  * @var bool        $showCaptcha
  * @var string      $contact
  * @var string|null $guideUrl  PDF petunjuk penggunaan (Settings → User guide)
+ * @var bool        $participantOpen  pendaftaran peserta non-presenter dibuka
  */
 
 use Cenim\Core\Csrf;
@@ -43,8 +44,8 @@ use Cenim\Core\Turnstile;
         </div>
         <p class="text-muted mb-3" style="font-size:11.5px">
             <i class="fa-solid fa-circle-info me-1"></i>
-            Use the email listed for you as an author (first author or co-author) or as a committee member / reviewer.
-            We will send you a 6-digit sign-in code.
+            Use the email listed for you as an author (first author or co-author), as a committee member / reviewer,
+            or as a registered participant. We will send you a 6-digit sign-in code.
         </p>
 
         <?php if ($showCaptcha): ?>
@@ -55,6 +56,16 @@ use Cenim\Core\Turnstile;
             <i class="fa-solid fa-paper-plane me-2"></i>Send sign-in code
         </button>
     </form>
+
+    <?php if ($participantOpen): ?>
+        <div class="d-flex align-items-center gap-2 my-3 text-muted" style="font-size:11.5px">
+            <hr class="flex-grow-1 my-0"><span>Not an author?</span><hr class="flex-grow-1 my-0">
+        </div>
+        <a href="<?= e(author_url('register.php')) ?>" class="btn btn-outline-secondary w-100 py-2" style="font-size:13.5px">
+            <i class="fa-solid fa-user-plus me-2"></i>Register as a participant (non-presenter)
+        </a>
+        <p class="text-muted text-center mt-1 mb-0" style="font-size:11px">For offline attendees who are not an author of an accepted paper.</p>
+    <?php endif; ?>
 <?php else: ?>
     <div class="alert alert-light border py-2 px-3" style="font-size:13px">
         <i class="fa-solid fa-envelope-circle-check me-1" style="color:var(--cn-navy)"></i>

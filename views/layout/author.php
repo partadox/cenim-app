@@ -32,7 +32,7 @@ $flash = Session::takeFlash();
         <a class="cn-brand d-flex align-items-center gap-2 text-decoration-none" href="<?= e(author_url('index.php')) ?>">
             <img src="<?= e(Cenim\Domain\BrandingRepo::logoUrl()) ?>" alt="CENIM" style="width:34px;height:34px;object-fit:contain">
             <span>
-                <strong class="d-block" style="font-size:15px;line-height:1.2"><?= e(cfg('app_name')) ?> Author Area</strong>
+                <strong class="d-block" style="font-size:15px;line-height:1.2"><?= e(cfg('app_name')) ?> <?= Cenim\Domain\ParticipantRepo::isParticipant(Cenim\Core\AuthorAuth::isLoggedIn() ? Cenim\Core\AuthorAuth::current() : null) ? 'Participant Area' : 'Author Area' ?></strong>
                 <span style="font-size:11px;color:var(--cn-gold);letter-spacing:.8px;text-transform:uppercase">
                     <?= e(isset($edition['year']) ? 'Edition ' . $edition['year'] : 'Registration & Payment') ?>
                 </span>

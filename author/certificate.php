@@ -25,7 +25,7 @@ $back        = author_url('index.php' . (input('from') === 'committee' ? '?tab=c
 if (
     $certificate === null
     // Author mana pun pada paper itu boleh membuka sertifikat rekan penulisnya.
-    || !CertificateRepo::belongsTo($certificate, AuthorAuth::coAuthorIds(), AuthorAuth::committeeIds())
+    || !CertificateRepo::belongsTo($certificate, AuthorAuth::coAuthorIds(), AuthorAuth::committeeIds(), AuthorAuth::guestIds())
 ) {
     Response::abort(403, 'You are not allowed to open this certificate.');
 }

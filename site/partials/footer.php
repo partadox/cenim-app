@@ -144,6 +144,68 @@ $cnPosterUrl = Cenim\Domain\GalleryRepo::posterUrl(site_edition_id());
     </div>
 </div>
 <?php endif; ?>
+<?php $cnPopup = Cenim\Domain\PopupRepo::forPage(site_edition_id(), (string) ($GLOBALS['cenimSitePage'] ?? '')); ?>
+<?php if ($cnPopup !== null): ?>
+<!-- Pop-up pengumuman (Admin → Announcement Pop-up) -->
+<div class="cn-popup" id="cnPopup" role="dialog" aria-modal="true" aria-labelledby="cnPopupTitle" hidden
+     data-key="cenim-popup-<?= e(substr(sha1(site_edition_id() . '|' . $cnPopup['updated_at']), 0, 12)) ?>"
+     data-frequency="<?= e($cnPopup['frequency']) ?>">
+    <div class="cn-popup-dialog">
+        <div class="cn-popup-head">
+            <h5 id="cnPopupTitle"><?= e($cnPopup['title']) ?></h5>
+            <button type="button" class="cn-popup-x" data-popup-close aria-label="Close">&times;</button>
+        </div>
+        <div class="cn-popup-body"><?= $cnPopup['body'] ?></div>
+        <div class="cn-popup-foot">
+            <button type="button" class="th-btn cn-popup-btn" data-popup-close><?= e($cnPopup['button']) ?></button>
+        </div>
+    </div>
+</div>
+<style>
+    .cn-popup { position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center;
+                padding: 16px; background: rgba(10, 20, 45, .6); }
+    .cn-popup[hidden] { display: none; }
+    .cn-popup-dialog { background: #fff; border-radius: 14px; width: 100%; max-width: 640px; max-height: calc(100vh - 32px);
+                       display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0, 0, 0, .3); overflow: hidden; }
+    .cn-popup-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #e5e9f0; }
+    .cn-popup-head h5 { margin: 0; font-size: 20px; flex: 1; }
+    .cn-popup-x { border: 0; background: transparent; font-size: 30px; line-height: 1; color: #64748b; cursor: pointer; padding: 0 4px; }
+    .cn-popup-x:hover { color: #0f172a; }
+    .cn-popup-body { padding: 18px 20px; overflow-y: auto; font-size: 16px; line-height: 1.6; }
+    .cn-popup-body img { max-width: 100%; height: auto; }
+    .cn-popup-body > :last-child { margin-bottom: 0; }
+    .cn-popup-foot { padding: 12px 20px 18px; text-align: right; }
+    .cn-popup-btn { padding: 12px 28px; }
+    @media (max-width: 575px) { .cn-popup-head h5 { font-size: 17px; } .cn-popup-body { font-size: 15px; } }
+</style>
+<script>
+(function () {
+    var popup = document.getElementById('cnPopup');
+    var key = popup.dataset.key;
+    var force = /[?&]popup=preview\b/.test(location.search);
+    try {
+        if (!force && popup.dataset.frequency === 'session' && sessionStorage.getItem(key)) { return; }
+    } catch (e) {}
+
+    function close() {
+        popup.hidden = true;
+        document.documentElement.style.overflow = '';
+        try { sessionStorage.setItem(key, '1'); } catch (e) {}
+        document.removeEventListener('keydown', onKey);
+    }
+    function onKey(e) { if (e.key === 'Escape') { close(); } }
+
+    popup.addEventListener('click', function (e) {
+        if (e.target === popup || e.target.closest('[data-popup-close]')) { close(); }
+    });
+    document.addEventListener('keydown', onKey);
+    popup.hidden = false;
+    document.documentElement.style.overflow = 'hidden';
+    var btn = popup.querySelector('.cn-popup-btn');
+    if (btn) { btn.focus({ preventScroll: true }); }
+})();
+</script>
+<?php endif; ?>
 </body>
 
 </html>

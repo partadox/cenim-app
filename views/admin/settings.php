@@ -47,6 +47,13 @@ use Cenim\Core\Csrf;
                             Registration form open for authors
                         </label>
                     </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="participant_registration_open" name="participant_registration_open" value="1"
+                            <?= $values['participant_registration_open'] ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="participant_registration_open">
+                            Non-presenter self-registration open (Portal → Register as a participant)
+                        </label>
+                    </div>
                     <div class="form-check mb-3">
                         <input class="form-check-input" type="checkbox" id="payment_open" name="payment_open" value="1"
                             <?= $values['payment_open'] ? 'checked' : '' ?>>

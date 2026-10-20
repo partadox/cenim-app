@@ -17,6 +17,9 @@
  * @var bool       $certificatesReleased
  * @var array      $steps
  * @var array|null $step0         confirmation form, null bila tidak berlaku
+ * @var bool       $isParticipant peserta non-presenter (bukan paper)
+ * @var array      $guests        orang yang diajak peserta (registration_attendees)
+ * @var array      $guestCertificates
  */
 
 use Cenim\Core\Csrf;
@@ -82,8 +85,9 @@ $certificateList = static function (array $items, bool $released, string $from, 
     <?php if ($papers !== []): ?>
         <li class="nav-item">
             <a class="nav-link <?= $tab === 'papers' ? 'active' : '' ?>" href="<?= e(author_url('index.php')) ?>">
-                <i class="fa-regular fa-file-lines me-1"></i>Papers
-                <span class="badge text-bg-light border ms-1"><?= count($papers) ?></span>
+                <?php $onlyParticipant = array_filter($papers, static fn (array $p): bool => !Cenim\Domain\ParticipantRepo::isParticipant($p)) === []; ?>
+                <i class="fa-regular fa-file-lines me-1"></i><?= $onlyParticipant ? 'Registration' : 'Papers' ?>
+                <?php if (!$onlyParticipant): ?><span class="badge text-bg-light border ms-1"><?= count($papers) ?></span><?php endif; ?>
             </a>
         </li>
     <?php endif; ?>
@@ -112,7 +116,7 @@ $certificateList = static function (array $items, bool $released, string $from, 
                         <?php $group = $label; ?>
                     <?php endif; ?>
                     <option value="<?= (int) $paper['id'] ?>" <?= (int) $paper['id'] === (int) $author['id'] ? 'selected' : '' ?>>
-                        <?= e($paper['paper_id'] . ' — ' . mb_strimwidth((string) ($paper['paper_title'] ?? ''), 0, 80, '…')) ?>
+                        <?= e($paper['paper_id'] . ' - ' . (Cenim\Domain\ParticipantRepo::isParticipant($paper) ? 'Participant registration (non-presenter)' : mb_strimwidth((string) ($paper['paper_title'] ?? ''), 0, 80, '…'))) ?>
                     </option>
                 <?php endforeach; ?>
                 <?= $group !== null ? '</optgroup>' : '' ?>
@@ -121,6 +125,74 @@ $certificateList = static function (array $items, bool $released, string $from, 
         </form>
     <?php endif; ?>
 
+    <?php if ($isParticipant): ?>
+        <?php
+        $partCertButton = static function (?array $certificate) use ($certificatesReleased): string {
+            if ($certificate === null) {
+                return '<span class="text-muted" style="font-size:11.5px">' . ($certificatesReleased ? 'After the registration is paid' : 'After the conference') . '</span>';
+            }
+            if (($certificate['revoked_at'] ?? null) !== null) {
+                return '<span class="cn-badge cn-badge-rejected">Revoked</span>';
+            }
+
+            return '<a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="'
+                . e(author_url('certificate.php?id=' . (int) $certificate['id'] . '&from=papers')) . '">'
+                . '<i class="fa-solid fa-certificate me-1" style="color:var(--cn-gold)"></i>Attendance</a>';
+        };
+        $ownCertificate = null;
+        foreach ($certificates as $certificate) {
+            if ((string) $certificate['type'] === CertificateRepo::TYPE_PARTICIPANT) {
+                $ownCertificate = $certificate;
+            }
+        }
+        $guestCertificate = [];
+        foreach ($guestCertificates as $certificate) {
+            $guestCertificate[(int) $certificate['recipient_ref_id']] = $certificate;
+        }
+        ?>
+        <div class="cn-card mb-3">
+            <div class="cn-card-head">
+                <i class="fa-solid fa-id-badge text-muted"></i>
+                <h2>Participant <?= e((string) $author['paper_id']) ?></h2>
+                <span class="cn-badge cn-badge-submitted">Non-presenter · offline</span>
+                <span class="cn-badge <?= e(RegistrationRepo::statusBadgeClass($status)) ?> ms-auto">
+                    Registration: <?= e(ucfirst($status)) ?>
+                </span>
+            </div>
+            <div class="cn-card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0" style="font-size:13px">
+                        <thead>
+                            <tr class="text-muted" style="font-size:11.5px">
+                                <th>Attending</th><th>Affiliation</th><th class="text-end">Certificate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="--bs-table-bg:#fff9ea">
+                                <td><b><?= e($displayName) ?></b> <span class="text-muted">(you)</span>
+                                    <div class="text-muted" style="font-size:11.5px"><?= e($email) ?></div></td>
+                                <td class="text-muted"><?= e((string) ($person['affiliation'] ?? '')) ?></td>
+                                <td class="text-end"><?= $partCertButton($ownCertificate) ?></td>
+                            </tr>
+                            <?php foreach ($guests as $guest): ?>
+                                <tr>
+                                    <td><?= e((string) $guest['name']) ?>
+                                        <div class="text-muted" style="font-size:11.5px"><?= e((string) ($guest['email'] ?? '')) ?></div></td>
+                                    <td class="text-muted"><?= e((string) ($guest['affiliation'] ?? '')) ?></td>
+                                    <td class="text-end"><?= $partCertButton($guestCertificate[(int) $guest['id']] ?? null) ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-muted mb-0 mt-2" style="font-size:11.5px">
+                    <i class="fa-solid fa-circle-info me-1"></i>
+                    The people who come with you are added in the registration form. After the conference you can download
+                    the attendance certificate of everyone listed here.
+                </p>
+            </div>
+        </div>
+    <?php else: ?>
     <div class="cn-card mb-3">
         <div class="cn-card-head">
             <i class="fa-regular fa-file-lines text-muted"></i>
@@ -227,6 +299,7 @@ $certificateList = static function (array $items, bool $released, string $from, 
             </p>
         </div>
     </div>
+    <?php endif; ?>
 
     <?php if ($status === RegistrationRepo::STATUS_REJECTED && ($registration['reject_reason'] ?? '') !== ''): ?>
         <div class="alert alert-danger" style="font-size:13px">
@@ -262,7 +335,7 @@ $certificateList = static function (array $items, bool $released, string $from, 
         </div>
     <?php endif; ?>
 
-    <div class="cn-steps mb-3">
+    <div class="cn-steps<?= count($steps) === 4 ? ' cn-steps-4' : '' ?> mb-3">
         <?php foreach ($steps as $step): ?>
             <?php $class = match ($step['state']) { 'done' => 'is-done', 'active' => 'is-active', default => '' }; ?>
             <div class="cn-step <?= $class ?> d-flex flex-column">
@@ -298,18 +371,18 @@ $certificateList = static function (array $items, bool $released, string $from, 
         </div>
         <div class="cn-card-body" style="font-size:13px">
             <?php
-            $docs = [
-                ['Letter of Acceptance', 'fa-envelope-open-text', $loaAvailable ? author_url('loa.php') : null,
+            $docs = array_values(array_filter([
+                $isParticipant ? null : ['Letter of Acceptance', 'fa-envelope-open-text', $loaAvailable ? author_url('loa.php') : null,
                     $loaAvailable ? 'Available' : 'Available once the paper is accepted'],
                 ['Invoice', 'fa-file-invoice', $invoice !== null ? author_url('invoice-pdf.php') : null,
                     $invoice !== null ? (string) $invoice['number'] : 'Not issued yet'],
                 ['Receipt', 'fa-receipt', $receipt !== null ? author_url('receipt-pdf.php') : null,
                     $receipt !== null ? (string) $receipt['number'] : 'Issued after payment is confirmed'],
-            ];
+            ]));
             ?>
             <div class="row g-2">
                 <?php foreach ($docs as [$label, $icon, $url, $note]): ?>
-                    <div class="col-md-4">
+                    <div class="col-md-<?= count($docs) === 2 ? '6' : '4' ?>">
                         <div class="d-flex align-items-center gap-2 border rounded px-3 py-2 h-100">
                             <i class="fa-solid <?= e($icon) ?> text-muted" style="width:18px"></i>
                             <div><b><?= e($label) ?></b><div class="text-muted" style="font-size:11.5px"><?= e($note) ?></div></div>

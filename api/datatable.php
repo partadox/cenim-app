@@ -33,7 +33,8 @@ $table     = (string) input('table', '');
 
 switch ($table) {
     case 'authors':
-        $where  = 'a.edition_id = ?';
+        // Peserta non-presenter (paper_status 'attendee') punya halaman sendiri (Participants).
+        $where  = "a.edition_id = ? AND a.paper_status != 'attendee'";
         $params = [$editionId];
 
         // Filter tambahan dari toolbar.

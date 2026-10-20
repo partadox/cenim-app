@@ -171,6 +171,7 @@ table.dataTable tbody td { vertical-align: middle; }
 .cn-author-wrap { max-width: 980px; margin: 0 auto; padding: 26px 18px 60px; }
 
 .cn-steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.cn-steps.cn-steps-4 { grid-template-columns: repeat(4, 1fr); }
 .cn-step {
     background: #fff;
     border: 1px solid var(--cn-border);
@@ -208,16 +209,16 @@ body.cn-auth {
 
 /* ── Responsif ───────────────────────────────────────────────────────────── */
 @media (max-width: 1199.98px) {
-    .cn-steps { grid-template-columns: repeat(3, 1fr); }
+    .cn-steps, .cn-steps.cn-steps-4 { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 991.98px) {
     .cn-shell { flex-direction: column; }
     .cn-sidebar { position: static; width: 100%; flex: none; height: auto; }
     .cn-sidebar .cn-nav { display: none; }
     .cn-sidebar.is-open .cn-nav { display: block; }
-    .cn-steps { grid-template-columns: repeat(2, 1fr); }
+    .cn-steps, .cn-steps.cn-steps-4 { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 575.98px) {
-    .cn-steps { grid-template-columns: 1fr; }
+    .cn-steps, .cn-steps.cn-steps-4 { grid-template-columns: 1fr; }
     .cn-content { padding: 16px 14px 32px; }
 }

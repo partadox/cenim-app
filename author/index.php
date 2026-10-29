@@ -396,6 +396,7 @@ View::render('author/dashboard', [
     'steps'        => $steps,
     'step0'        => $step0,
     'workshopCard' => $workshopCard,
+    'documents'    => $author !== null ? Cenim\Domain\AuthorDocumentRepo::forAuthor((int) $author['id']) : [],
     'isParticipant' => $isParticipant,
     'guests'       => $guests,
     'guestCertificates' => $guestCertificates,

@@ -1,6 +1,9 @@
 <?php
 /**
  * Tambah / ubah satu author. id kosong = tambah baru.
+ * Paper yang sudah ada juga punya bagian "Additional documents": dokumen yang
+ * diminta author (nama + keterangan, bisa beberapa sekaligus) diunggah ke
+ * object storage dan bisa diunduh author di Portal (AuthorDocumentRepo).
  */
 
 declare(strict_types=1);
@@ -12,6 +15,7 @@ use Cenim\Core\Csrf;
 use Cenim\Core\Response;
 use Cenim\Core\Session;
 use Cenim\Core\View;
+use Cenim\Domain\AuthorDocumentRepo;
 use Cenim\Domain\AuthorRepo;
 
 $edition   = current_edition();
@@ -27,6 +31,80 @@ $author = $id > 0 ? AuthorRepo::find($id) : null;
 
 if ($id > 0 && ($author === null || (int) $author['edition_id'] !== $editionId)) {
     Response::abort(404, 'Author not found in the active edition.');
+}
+
+// ── Dokumen tambahan (form terpisah, action=doc_*) ─────────────────────────
+$docAction = is_post() ? (string) input('action', '') : '';
+if ($author !== null && str_starts_with($docAction, 'doc_')) {
+    Csrf::verify();
+    $back = admin_url('author-edit.php?id=' . $id . '#documents');
+
+    if ($docAction === 'doc_upload') {
+        $titles = (array) ($_POST['doc_title'] ?? []);
+        $descs  = (array) ($_POST['doc_description'] ?? []);
+        $files  = $_FILES['doc_file'] ?? null;
+        $saved  = 0;
+        $failed = [];
+
+        foreach ($titles as $i => $title) {
+            $title  = trim((string) $title);
+            $upload = is_array($files) && isset($files['name'][$i]) ? [
+                'name'     => (string) $files['name'][$i],
+                'type'     => (string) $files['type'][$i],
+                'tmp_name' => (string) $files['tmp_name'][$i],
+                'error'    => (int) $files['error'][$i],
+                'size'     => (int) $files['size'][$i],
+            ] : null;
+            $hasFile = $upload !== null && $upload['error'] !== UPLOAD_ERR_NO_FILE;
+
+            if ($title === '' && !$hasFile) {
+                continue; // baris kosong
+            }
+            if ($title === '' || !$hasFile) {
+                $failed[] = ($title !== '' ? $title : 'Row ' . ((int) $i + 1)) . ': ' . ($title === '' ? 'enter the document name.' : 'choose a file.');
+                continue;
+            }
+
+            try {
+                $fileId = AuthorDocumentRepo::add($author, $upload, $title, (string) ($descs[$i] ?? ''));
+                Audit::log('author.document_uploaded', ['target_type' => 'author', 'target_id' => $id,
+                    'meta' => ['paper_id' => $author['paper_id'], 'file_id' => $fileId, 'title' => $title]]);
+                $saved++;
+            } catch (InvalidArgumentException $e) {
+                $failed[] = $title . ': ' . $e->getMessage();
+            } catch (Throwable $e) {
+                Cenim\Core\Logger::error('Upload dokumen author gagal', ['author_id' => $id, 'error' => $e->getMessage()]);
+                $failed[] = $title . ': the file could not be stored. Please try again.';
+            }
+        }
+
+        if ($saved > 0) {
+            Session::flash('success', $saved . ' document(s) uploaded.');
+        }
+        foreach ($failed as $message) {
+            Session::flash('error', $message);
+        }
+        if ($saved === 0 && $failed === []) {
+            Session::flash('error', 'Enter a document name and choose a file.');
+        }
+    } elseif (($doc = AuthorDocumentRepo::find($id, input_int('file_id'))) !== null) {
+        if ($docAction === 'doc_update') {
+            $title = trim((string) input('title', ''));
+            if ($title === '') {
+                Session::flash('error', 'The document name cannot be empty.');
+            } else {
+                AuthorDocumentRepo::updateInfo((int) $doc['id'], $title, (string) input('description', ''));
+                Session::flash('success', 'Document "' . $title . '" updated.');
+            }
+        } elseif ($docAction === 'doc_delete') {
+            Cenim\Domain\FileRepo::softDelete((int) $doc['id']);
+            Audit::log('author.document_deleted', ['target_type' => 'author', 'target_id' => $id,
+                'meta' => ['paper_id' => $author['paper_id'], 'file_id' => (int) $doc['id'], 'title' => $doc['title']]]);
+            Session::flash('success', 'Document "' . ($doc['title'] ?? $doc['original_name']) . '" deleted.');
+        }
+    }
+
+    Response::redirect($back);
 }
 
 $values = $author ?? [
@@ -113,4 +191,5 @@ View::render('admin/author_edit', [
     'statuses'       => AuthorRepo::PAPER_STATUSES,
     'duplicateEmail' => $duplicateEmail,
     'paperAuthors'   => $author !== null ? Cenim\Domain\PaperAuthorRepo::forPaper((int) $author['id']) : [],
+    'documents'      => $author !== null ? AuthorDocumentRepo::forAuthor((int) $author['id']) : [],
 ], 'admin');

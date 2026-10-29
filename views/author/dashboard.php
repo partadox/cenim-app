@@ -17,6 +17,7 @@
  * @var bool       $certificatesReleased
  * @var array      $steps
  * @var array|null $step0         confirmation form, null bila tidak berlaku
+ * @var array<int,array<string,mixed>> $documents  dokumen dari panitia (AuthorDocumentRepo)
  * @var array|null $workshopCard  workshops, joined, open, locked, certificates, archive — null bila tidak berlaku
  * @var bool       $isParticipant peserta non-presenter (bukan paper)
  * @var array      $guests        orang yang diajak peserta (registration_attendees)
@@ -306,6 +307,32 @@ $certificateList = static function (array $items, bool $released, string $from, 
         <div class="alert alert-danger" style="font-size:13px">
             <b><i class="fa-solid fa-circle-exclamation me-1"></i>Correction requested</b>
             <div class="mt-1"><?= nl2br(e((string) $registration['reject_reason'])) ?></div>
+        </div>
+    <?php endif; ?>
+
+    <?php if (($documents ?? []) !== []): ?>
+        <div class="cn-card mb-3">
+            <div class="cn-card-head">
+                <i class="fa-solid fa-folder-open text-muted"></i>
+                <h2>Documents from the committee</h2>
+            </div>
+            <div class="cn-card-body p-0">
+                <ul class="list-group list-group-flush" style="font-size:13px">
+                    <?php foreach ($documents as $doc): ?>
+                        <li class="list-group-item d-flex flex-wrap align-items-center gap-2">
+                            <span style="flex:1 1 260px">
+                                <b><?= e((string) ($doc['title'] ?? $doc['original_name'])) ?></b>
+                                <?php if (($doc['description'] ?? '') !== ''): ?>
+                                    <span class="d-block text-muted" style="font-size:12px"><?= nl2br(e((string) $doc['description'])) ?></span>
+                                <?php endif; ?>
+                            </span>
+                            <a class="btn btn-sm btn-outline-secondary" href="<?= e(app_url('public/file.php?id=' . (int) $doc['id'])) ?>" target="_blank" rel="noopener">
+                                <i class="fa-solid fa-download me-1"></i>Download
+                            </a>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
         </div>
     <?php endif; ?>
 

@@ -46,6 +46,8 @@ $belongsToAuthor = static function (array $file, int $authorId): bool {
              WHERE p.id = ? AND r.author_id = ?',
             [$ownerId, $authorId]
         ) !== null,
+        // Dokumen tambahan dari panitia (AuthorDocumentRepo): milik paper/peserta itu.
+        'author' => $ownerId === $authorId,
         default => false,
     };
 };

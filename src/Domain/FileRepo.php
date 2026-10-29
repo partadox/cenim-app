@@ -23,6 +23,7 @@ final class FileRepo
      * Simpan satu file hasil upload.
      *
      * @param  array{name:string,type:string,tmp_name:string,error:int,size:int} $upload
+     * @param  array<string,array<int,string>>|null $types ekstensi => MIME yang diterima; null = cfg('upload')
      * @throws InvalidArgumentException bila file tidak lolos validasi
      */
     public static function store(
@@ -31,9 +32,10 @@ final class FileRepo
         string $ownerType,
         int $ownerId,
         int $editionId,
-        int $year
+        int $year,
+        ?array $types = null
     ): int {
-        self::validate($upload);
+        self::validate($upload, $types);
 
         $extension = strtolower(pathinfo($upload['name'], PATHINFO_EXTENSION));
         // Gambar yang tampil di halaman publik (foto speaker) masuk "media/",
@@ -191,8 +193,11 @@ final class FileRepo
         return round($bytes / 1048576, 2) . ' MB';
     }
 
-    /** @throws InvalidArgumentException */
-    private static function validate(array $upload): void
+    /**
+     * @param array<string,array<int,string>>|null $types ekstensi => MIME yang diterima; null = cfg('upload')
+     * @throws InvalidArgumentException
+     */
+    private static function validate(array $upload, ?array $types = null): void
     {
         $error = (int) ($upload['error'] ?? UPLOAD_ERR_NO_FILE);
 
@@ -218,7 +223,7 @@ final class FileRepo
             throw new InvalidArgumentException('Invalid upload.');
         }
 
-        $allowedExt = (array) cfg('upload.allowed_ext', ['pdf', 'jpg', 'jpeg', 'png']);
+        $allowedExt = $types !== null ? array_keys($types) : (array) cfg('upload.allowed_ext', ['pdf', 'jpg', 'jpeg', 'png']);
         $extension  = strtolower(pathinfo((string) $upload['name'], PATHINFO_EXTENSION));
 
         if (!in_array($extension, $allowedExt, true)) {
@@ -226,11 +231,11 @@ final class FileRepo
         }
 
         // Jangan percaya Content-Type dari browser — periksa isi filenya.
-        $allowedMime = (array) cfg('upload.allowed_mime', []);
+        $allowedMime = $types !== null ? $types[$extension] : (array) cfg('upload.allowed_mime', []);
         $mime        = (string) (mime_content_type((string) $upload['tmp_name']) ?: '');
 
         if ($allowedMime !== [] && !in_array($mime, $allowedMime, true)) {
-            throw new InvalidArgumentException('The file content is not a valid PDF or image (detected: ' . ($mime ?: 'unknown') . ').');
+            throw new InvalidArgumentException('The file content does not match its type .' . $extension . ' (detected: ' . ($mime ?: 'unknown') . ').');
         }
     }
 }

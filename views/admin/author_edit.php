@@ -5,6 +5,7 @@
  * @var array<string,string> $errors
  * @var array<int,string>   $statuses
  * @var int                 $duplicateEmail
+ * @var array<int,array<string,mixed>> $documents  dokumen tambahan (AuthorDocumentRepo)
  */
 
 use Cenim\Core\Csrf;
@@ -242,4 +243,106 @@ $cls = static fn (string $field): string => isset($errors[$field]) ? ' is-invali
             </p>
         </div>
     </div>
+<?php endif; ?>
+
+<?php if ($author !== null): ?>
+    <?php
+    $docTypes = Cenim\Domain\AuthorDocumentRepo::TYPES;
+    $accept   = implode(',', array_map(static fn (string $ext): string => '.' . $ext, array_keys($docTypes)));
+    ?>
+    <div class="cn-card mt-3" id="documents">
+        <div class="cn-card-head flex-wrap">
+            <i class="fa-solid fa-folder-open text-muted"></i>
+            <h2>Additional documents (<?= count($documents) ?>)</h2>
+            <span class="text-muted" style="font-size:12px">
+                Documents requested by the author (e.g. invitation letter, visa letter). Stored in object storage;
+                all authors of this paper can download them in the Portal.
+            </span>
+        </div>
+        <div class="cn-card-body">
+            <?php if ($documents !== []): ?>
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm align-middle mb-0" style="font-size:12.5px">
+                        <thead class="table-light">
+                            <tr><th style="width:40px" class="text-center">No</th><th style="width:28%">Document name</th><th>Description</th><th>File</th><th style="width:110px"></th></tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($documents as $i => $doc): ?>
+                                <?php $formId = 'doc' . (int) $doc['id']; ?>
+                                <tr>
+                                    <td class="text-center text-muted"><?= $i + 1 ?></td>
+                                    <td><input form="<?= $formId ?>" class="form-control form-control-sm" name="title" maxlength="190" required
+                                               value="<?= e((string) ($doc['title'] ?? $doc['original_name'])) ?>"></td>
+                                    <td><textarea form="<?= $formId ?>" class="form-control form-control-sm" name="description" rows="1" maxlength="1000"><?= e((string) ($doc['description'] ?? '')) ?></textarea></td>
+                                    <td style="font-size:12px">
+                                        <a href="<?= e(app_url('public/file.php?id=' . (int) $doc['id'])) ?>" target="_blank" rel="noopener">
+                                            <i class="fa-regular fa-file me-1"></i><?= e((string) $doc['original_name']) ?></a>
+                                        <div class="text-muted" style="font-size:11px">
+                                            <?= e(Cenim\Domain\FileRepo::humanSize((int) $doc['size'])) ?> &middot; <?= e(fmt_dt((string) $doc['uploaded_at'])) ?>
+                                            <?= (string) $doc['driver'] !== 's3' ? ' &middot; <span class="text-warning">stored locally</span>' : '' ?>
+                                        </div>
+                                    </td>
+                                    <td class="text-end text-nowrap">
+                                        <form method="post" id="<?= $formId ?>" class="d-inline">
+                                            <?= Csrf::field() ?>
+                                            <input type="hidden" name="id" value="<?= (int) $author['id'] ?>">
+                                            <input type="hidden" name="file_id" value="<?= (int) $doc['id'] ?>">
+                                            <button class="btn btn-sm btn-outline-secondary" name="action" value="doc_update" title="Save name and description"><i class="fa-solid fa-floppy-disk"></i></button>
+                                            <button class="btn btn-sm btn-outline-danger" name="action" value="doc_delete" title="Delete" formnovalidate
+                                                    onclick="return confirm('Delete this document? The author can no longer download it.')"><i class="fa-solid fa-trash"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+
+            <form method="post" enctype="multipart/form-data" id="docUploadForm">
+                <?= Csrf::field() ?>
+                <input type="hidden" name="id" value="<?= (int) $author['id'] ?>">
+                <input type="hidden" name="action" value="doc_upload">
+                <div class="fw-semibold mb-2" style="font-size:13px"><i class="fa-solid fa-cloud-arrow-up me-1 text-muted"></i>Upload new documents</div>
+                <div id="docRows">
+                    <div class="row g-2 mb-2 cn-doc-row">
+                        <div class="col-md-3"><input class="form-control form-control-sm" name="doc_title[]" maxlength="190" placeholder="Document name, e.g. Invitation letter"></div>
+                        <div class="col-md-4"><input class="form-control form-control-sm" name="doc_description[]" maxlength="1000" placeholder="Description (optional)"></div>
+                        <div class="col-md-4"><input type="file" class="form-control form-control-sm" name="doc_file[]" accept="<?= e($accept) ?>"></div>
+                        <div class="col-md-1 text-end"><button type="button" class="btn btn-sm btn-outline-secondary cn-doc-remove" title="Remove row"><i class="fa-solid fa-xmark"></i></button></div>
+                    </div>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="docAddRow"><i class="fa-solid fa-plus me-1"></i>Add another document</button>
+                    <button type="submit" class="btn btn-sm btn-navy"><i class="fa-solid fa-upload me-1"></i>Upload</button>
+                    <span class="text-muted" style="font-size:11.5px"><?= e(Cenim\Domain\AuthorDocumentRepo::typesLabel()) ?>, max <?= e(upload_max_label()) ?> per file.</span>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        var rows = document.getElementById('docRows');
+        var template = rows.querySelector('.cn-doc-row');
+
+        document.getElementById('docAddRow').addEventListener('click', function () {
+            var row = template.cloneNode(true);
+            row.querySelectorAll('input').forEach(function (input) { input.value = ''; });
+            rows.appendChild(row);
+            row.querySelector('input').focus();
+        });
+
+        rows.addEventListener('click', function (event) {
+            var button = event.target.closest('.cn-doc-remove');
+            if (!button) { return; }
+            var row = button.closest('.cn-doc-row');
+            if (rows.querySelectorAll('.cn-doc-row').length > 1) {
+                row.remove();
+            } else {
+                row.querySelectorAll('input').forEach(function (input) { input.value = ''; });
+            }
+        });
+    })();
+    </script>
 <?php endif; ?>

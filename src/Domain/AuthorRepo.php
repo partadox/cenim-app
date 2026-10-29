@@ -174,7 +174,8 @@ final class AuthorRepo
         $guestIds   = array_map('intval', array_column(Db::all('SELECT id FROM registration_attendees WHERE registration_id IN (' . $in($regIds) . ')'), 'id'));
         $fileIds    = array_map('intval', array_column(Db::all(
             "SELECT id FROM files WHERE deleted_at IS NULL AND ((owner_type = 'registration' AND owner_id IN (" . $in($regIds) . "))
-             OR (owner_type = 'payment' AND owner_id IN (" . $in($paymentIds) . ')))'
+             OR (owner_type = 'payment' AND owner_id IN (" . $in($paymentIds) . "))
+             OR (owner_type = '" . AuthorDocumentRepo::OWNER . "' AND owner_id = " . (int) $id . '))'
         ), 'id'));
 
         Db::transaction(static function () use ($id, $in, $personIds, $guestIds): void {

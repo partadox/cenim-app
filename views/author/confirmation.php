@@ -15,6 +15,8 @@
  * @var array<int,string> $shirtSizes  [] = ukuran baju tidak ditanyakan
  * @var array      $values
  * @var array<string,string> $errors
+ * @var bool       $adminMode     dibuka admin (4dm1n/confirmation-edit.php)
+ * @var string     $backUrl
  */
 
 use Cenim\Core\Csrf;
@@ -25,11 +27,12 @@ $currency = (string) $fee['currency'];
 $err = static fn (string $field): string => isset($errors[$field])
     ? '<div class="invalid-feedback d-block" style="font-size:12px">' . e($errors[$field]) . '</div>'
     : '';
+$adminMode    = $adminMode ?? false;
 $submittedReg = $registration !== null && (string) $registration['status'] !== RegistrationRepo::STATUS_DRAFT;
 ?>
 
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-    <a href="<?= e(author_url('index.php')) ?>" class="btn btn-sm btn-outline-secondary">
+    <a href="<?= e($backUrl ?? author_url('index.php')) ?>" class="btn btn-sm btn-outline-secondary">
         <i class="fa-solid fa-arrow-left me-1"></i>Back
     </a>
     <?php if ($confirmation !== null): ?>
@@ -40,7 +43,15 @@ $submittedReg = $registration !== null && (string) $registration['status'] !== R
     <?php endif; ?>
 </div>
 
-<?php if ($submittedReg): ?>
+<?php if ($adminMode): ?>
+    <div class="alert alert-warning" style="font-size:13px">
+        <i class="fa-solid fa-user-shield me-1"></i>
+        You are editing this confirmation <b>as the secretariat</b>. The deadline and the registration status are not checked.
+        <?php if ($submittedReg): ?>
+            The registration has already been submitted: changes here do <b>not</b> change the registration, invoice or fee.
+        <?php endif; ?>
+    </div>
+<?php elseif ($submittedReg): ?>
     <div class="alert alert-info" style="font-size:13px">
         <i class="fa-solid fa-circle-info me-1"></i>
         The registration form has been submitted, so this confirmation is read-only. Contact the secretariat if something has changed.
@@ -187,7 +198,7 @@ $submittedReg = $registration !== null && (string) $registration['status'] !== R
                 <button type="submit" class="btn btn-gold px-4">
                     <i class="fa-solid fa-paper-plane me-1"></i><?= $confirmation === null ? 'Submit confirmation' : 'Update confirmation' ?>
                 </button>
-                <?php if ($confirmation !== null): ?>
+                <?php if ($confirmation !== null && !$adminMode): ?>
                     <span class="text-muted ms-2" style="font-size:12px">You can change it until the deadline, as long as the registration has not been submitted.</span>
                 <?php endif; ?>
             <?php endif; ?>

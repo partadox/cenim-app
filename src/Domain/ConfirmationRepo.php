@@ -193,8 +193,11 @@ final class ConfirmationRepo
             'shirt_sizes_json'  => ($values['shirts'] ?? []) !== [] && $values['presentation_mode'] === 'offline'
                 ? json_encode(array_values($values['shirts']), JSON_UNESCAPED_UNICODE)
                 : null,
-            'filled_by_id'      => $person !== null ? (int) $person['id'] : null,
-            'filled_by_name'    => $person !== null ? mb_substr($person['name'] . ' (' . ($person['email'] ?? '-') . ')', 0, 255) : null,
+            // $person tanpa id = diisi admin (filled_by_name apa adanya).
+            'filled_by_id'      => isset($person['id']) ? (int) $person['id'] : null,
+            'filled_by_name'    => $person === null ? null : mb_substr(isset($person['email'])
+                ? $person['name'] . ' (' . $person['email'] . ')'
+                : (string) $person['name'], 0, 255),
         ];
 
         $existing = self::findForPaper((int) $paper['id']);

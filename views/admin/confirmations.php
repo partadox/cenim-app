@@ -81,24 +81,27 @@ $cards = [
 <div class="cn-card">
     <div class="cn-card-body p-0">
         <div class="table-responsive">
-            <table class="table table-sm align-middle mb-0" style="font-size:12.5px">
+            <table class="table table-sm align-middle mb-0" id="confirmTable" style="font-size:12.5px">
                 <thead class="table-light">
-                    <tr><th>Paper</th><th>Presentation</th><th class="text-center">Pages</th><th>Extra page fee</th><th>Note</th><th>Registration</th></tr>
+                    <tr><th class="text-center">No</th><th>Paper</th><th>Presentation</th><th class="text-center">Pages</th><th>Extra page fee</th><th>Note</th><th>Registration</th><th></th></tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($rows as $row): ?>
+                    <?php foreach ($rows as $i => $row): ?>
                         <?php
                         $confirmed = $row['confirmation_id'] !== null;
                         $review    = (int) $row['total_pages'];
                         $final     = (int) ($row['final_pages'] ?? 0);
+                        // Urutan sort kolom Presentation: belum konfirmasi, online, offline (lalu jumlah orang).
+                        $modeOrder = !$confirmed ? 0 : ((string) $row['presentation_mode'] === 'online' ? 1 : 2 + (int) $row['attendees']);
                         ?>
                         <tr>
-                            <td style="max-width:280px">
+                            <td class="text-center text-muted"><?= $i + 1 ?></td>
+                            <td style="max-width:280px" data-order="<?= e((string) $row['paper_id']) ?>">
                                 <a href="<?= e(admin_url('author-edit.php?id=' . (int) $row['author_id'])) ?>"><b><?= e((string) $row['paper_id']) ?></b></a>
                                 <div class="text-muted text-truncate" title="<?= e((string) $row['paper_title']) ?>"><?= e((string) $row['paper_title']) ?></div>
                                 <div class="text-muted" style="font-size:11.5px"><?= e((string) $row['first_author_name']) ?></div>
                             </td>
-                            <td>
+                            <td data-order="<?= $modeOrder ?>">
                                 <?php if (!$confirmed): ?>
                                     <span class="cn-badge cn-badge-draft">not confirmed</span>
                                 <?php elseif ((string) $row['presentation_mode'] === 'online'): ?>
@@ -118,7 +121,7 @@ $cards = [
                                     <?php endif; ?>
                                 <?php endif; ?>
                             </td>
-                            <td class="text-center" style="white-space:nowrap">
+                            <td class="text-center" style="white-space:nowrap" data-order="<?= $final > 0 ? $final : $review ?>">
                                 <?php if ($final > 0 && $final !== $review): ?>
                                     <span class="text-muted text-decoration-line-through" title="Reviewed manuscript"><?= $review ?></span>
                                     <b title="Final manuscript"><?= $final ?></b>
@@ -127,7 +130,7 @@ $cards = [
                                 <?php endif; ?>
                                 <div class="text-muted" style="font-size:10.5px"><?= $final > 0 ? 'final' : 'review' ?></div>
                             </td>
-                            <td style="white-space:nowrap">
+                            <td style="white-space:nowrap" data-order="<?= $confirmed ? (float) $row['extra_page_fee'] : -1 ?>">
                                 <?php if ($confirmed && (int) $row['extra_pages'] > 0): ?>
                                     <?= e(fmt_money((float) $row['extra_page_fee'], (string) $row['currency'])) ?>
                                     <div class="text-muted" style="font-size:11px"><?= (int) $row['extra_pages'] ?> extra page(s) at confirmation</div>
@@ -135,7 +138,7 @@ $cards = [
                                     <span class="text-muted">&mdash;</span>
                                 <?php endif; ?>
                             </td>
-                            <td style="font-size:12px;max-width:260px">
+                            <td style="font-size:12px;max-width:260px" data-order="<?= $confirmed ? e((string) ($row['updated_at'] ?? $row['submitted_at'])) : '' ?>">
                                 <?php if (($row['note'] ?? '') !== ''): ?>
                                     <div><i class="fa-regular fa-note-sticky me-1"></i><?= nl2br(e((string) $row['note'])) ?></div>
                                 <?php endif; ?>
@@ -149,13 +152,46 @@ $cards = [
                             <td>
                                 <span class="cn-badge cn-badge-<?= e((string) ($row['registration_status'] ?? 'draft')) ?>"><?= e(ucfirst((string) ($row['registration_status'] ?? 'not started'))) ?></span>
                             </td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-secondary" href="<?= e(admin_url('confirmation-edit.php?id=' . (int) $row['author_id'])) ?>"
+                                   title="<?= $confirmed ? 'Edit confirmation' : 'Fill in the confirmation' ?>"><i class="fa-solid <?= $confirmed ? 'fa-pen' : 'fa-plus' ?>"></i></a>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
-                    <?php if ($rows === []): ?>
-                        <tr><td colspan="6" class="text-muted p-3">No paper here.</td></tr>
-                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var table = new DataTable('#confirmTable', {
+        order: [[1, 'asc']],
+        pageLength: 50,
+        lengthMenu: [25, 50, 100, { label: 'All', value: -1 }],
+        columnDefs: [
+            { targets: 0, orderable: false, searchable: false },
+            { targets: -1, orderable: false, searchable: false }
+        ],
+        language: {
+            search: '',
+            searchPlaceholder: 'Search paper ID, title, author, note…',
+            emptyTable: 'No paper here.',
+            zeroRecords: 'No paper matches your search.',
+            info: 'Showing _START_ to _END_ of _TOTAL_ papers',
+            infoEmpty: 'No papers',
+            infoFiltered: '(filtered from _MAX_ total)'
+        }
+    });
+
+    // Kolom No mengikuti urutan & hasil pencarian yang sedang tampil.
+    table.on('draw', function () {
+        var start = table.page.info().start;
+        table.column(0, { search: 'applied', order: 'applied', page: 'current' }).nodes().each(function (cell, i) {
+            cell.textContent = start + i + 1;
+        });
+    });
+    table.draw(false);
+});
+</script>

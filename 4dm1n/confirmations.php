@@ -90,6 +90,7 @@ View::render('admin/confirmations', [
     'title'    => 'Confirmations',
     'subtitle' => ($edition['name'] ?? 'No edition') . ' — ' . $counts['confirmed'] . ' of ' . count($all) . ' accepted papers confirmed',
     'active'   => 'confirmations',
+    'assets'   => ['datatables'],
     'edition'  => $edition,
     'rows'     => $rows,
     'total'    => count($all),

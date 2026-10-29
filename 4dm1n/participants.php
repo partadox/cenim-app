@@ -92,12 +92,20 @@ foreach ($rows as $row) {
     }
 }
 
+// Non-presenter dari paper (dibawa author di registration form).
+$guests = ParticipantRepo::paperGuests($editionId);
+$counts['paper_guests'] = count($guests);
+$counts['paper_guests_paid'] = count(array_filter($guests, static fn (array $g): bool => ($g['invoice_status'] ?? '') === 'paid'));
+$counts['total'] = $counts['people'] + $counts['paper_guests'];
+
 View::render('admin/participants', [
     'title'     => 'Participants (non-presenter)',
     'subtitle'  => ($edition['name'] ?? '') . ' — ' . count($rows) . ' registered',
     'active'    => 'participants',
     'edition'   => $edition,
     'rows'      => $rows,
+    'guests'    => $guests,
+    'assets'    => ['datatables'],
     'counts'    => $counts,
     'editing'   => $editing,
     'values'    => $values,

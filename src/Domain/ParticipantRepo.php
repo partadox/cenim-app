@@ -194,6 +194,30 @@ final class ParticipantRepo
     }
 
     /**
+     * Non-presenter yang dibawa author lewat registrasi paper (keranjang peserta
+     * tambahan), dari registrasi yang sudah dikirim (bukan draft/ditolak). Tamu peserta mandiri (NP-)
+     * tidak termasuk — sudah dihitung di all().
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public static function paperGuests(int $editionId): array
+    {
+        return Db::all(
+            "SELECT ra.id, ra.name, ra.email, ra.affiliation, ra.shirt_size, ra.paper_author_id,
+                    a.id AS author_id, a.paper_id, a.paper_title, a.first_author_name,
+                    r.id AS registration_id, r.status AS registration_status, r.presentation_mode,
+                    i.number AS invoice_number, i.status AS invoice_status
+             FROM registration_attendees ra
+             JOIN registrations r ON r.id = ra.registration_id
+             JOIN authors a ON a.id = r.author_id
+             LEFT JOIN invoices i ON i.registration_id = r.id AND i.status != '" . InvoiceRepo::STATUS_VOID . "'
+             WHERE ra.edition_id = ? AND a.paper_status != ? AND r.status NOT IN (?, ?)
+             ORDER BY a.paper_id, ra.sort, ra.id",
+            [$editionId, self::STATUS, RegistrationRepo::STATUS_DRAFT, RegistrationRepo::STATUS_REJECTED]
+        );
+    }
+
+    /**
      * Semua peserta non-presenter edisi ini beserta status registrasi & pembayarannya.
      *
      * @return array<int,array<string,mixed>>

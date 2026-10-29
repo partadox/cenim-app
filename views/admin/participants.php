@@ -1,7 +1,8 @@
 <?php
 /**
  * @var array      $rows
- * @var array<string,int> $counts  accounts|submitted|paid|people
+ * @var array<string,int> $counts  accounts|submitted|paid|people|paper_guests|paper_guests_paid|total
+ * @var array      $guests  non-presenter yang dibawa author (ParticipantRepo::paperGuests)
  * @var array|null $editing
  * @var array      $values
  * @var array<string,string> $errors
@@ -16,10 +17,10 @@ $err = static fn (string $field): string => isset($errors[$field])
     ? '<div class="invalid-feedback d-block" style="font-size:12px">' . e($errors[$field]) . '</div>' : '';
 $cls = static fn (string $field): string => isset($errors[$field]) ? ' is-invalid' : '';
 $cards = [
-    ['Registered participants', $counts['accounts'], 'fa-id-badge'],
-    ['Registrations submitted', $counts['submitted'], 'fa-clipboard-list'],
-    ['Paid', $counts['paid'], 'fa-circle-check'],
-    ['People attending (submitted)', $counts['people'], 'fa-users'],
+    ['Total non-presenters attending', $counts['total'], 'fa-users', 'self-registered + brought by authors (submitted registrations)'],
+    ['Self-registered participants', $counts['accounts'], 'fa-id-badge', $counts['people'] . ' people incl. their guests · ' . $counts['paid'] . ' paid'],
+    ['Brought by authors', $counts['paper_guests'], 'fa-people-group', $counts['paper_guests_paid'] . ' paid'],
+    ['Registrations submitted', $counts['submitted'], 'fa-clipboard-list', 'self-registered participants'],
 ];
 ?>
 
@@ -32,12 +33,13 @@ $cards = [
 </div>
 
 <div class="row g-3 mb-3">
-    <?php foreach ($cards as [$label, $value, $icon]): ?>
+    <?php foreach ($cards as [$label, $value, $icon, $hint]): ?>
         <div class="col-6 col-lg-3">
             <div class="cn-card h-100">
                 <div class="cn-card-body cn-stat">
                     <span class="cn-stat-icon"><i class="fa-solid <?= e($icon) ?>"></i></span>
-                    <span><span class="cn-stat-value d-block"><?= (int) $value ?></span><span class="cn-stat-label"><?= e($label) ?></span></span>
+                    <span><span class="cn-stat-value d-block"><?= (int) $value ?></span><span class="cn-stat-label"><?= e($label) ?></span>
+                        <span class="d-block text-muted" style="font-size:11px"><?= e($hint) ?></span></span>
                 </div>
             </div>
         </div>
@@ -142,3 +144,73 @@ $cards = [
         </form>
     </div>
 </div>
+
+<div class="cn-card mt-3">
+    <div class="cn-card-head">
+        <i class="fa-solid fa-people-group text-muted"></i>
+        <h2>Non-presenters brought by authors <span class="text-muted fw-normal" style="font-size:12px">(from paper registrations: <?= count($guests) ?> people)</span></h2>
+    </div>
+    <div class="cn-card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0" id="guestTable" style="font-size:12.5px">
+                <thead class="table-light">
+                    <tr><th class="text-center">No</th><th>Name</th><th>Affiliation</th><th>Paper</th><th>Shirt</th><th>Registration</th><th>Invoice</th></tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($guests as $i => $g): ?>
+                        <?php $status = (string) $g['registration_status']; ?>
+                        <tr>
+                            <td class="text-center text-muted"><?= $i + 1 ?></td>
+                            <td><b><?= e((string) $g['name']) ?></b>
+                                <div class="text-muted"><?= e((string) ($g['email'] ?? '')) ?><?= $g['paper_author_id'] !== null ? ' · co-author' : '' ?></div></td>
+                            <td><?= e((string) ($g['affiliation'] ?? '')) ?></td>
+                            <td data-order="<?= e((string) $g['paper_id']) ?>">
+                                <a href="<?= e(admin_url('author-edit.php?id=' . (int) $g['author_id'])) ?>"><b><?= e((string) $g['paper_id']) ?></b></a>
+                                <div class="text-muted" style="font-size:11px"><?= e((string) $g['first_author_name']) ?></div>
+                            </td>
+                            <td><?= e((string) ($g['shirt_size'] ?? '')) ?></td>
+                            <td><a href="<?= e(admin_url('registration-view.php?id=' . (int) $g['registration_id'])) ?>" class="cn-badge <?= e(RegistrationRepo::statusBadgeClass($status)) ?>"><?= e(ucfirst($status)) ?></a></td>
+                            <td>
+                                <?php if (($g['invoice_number'] ?? '') !== ''): ?>
+                                    <?= e((string) $g['invoice_number']) ?>
+                                    <div><span class="cn-badge cn-badge-<?= $g['invoice_status'] === 'paid' ? 'verified' : 'unpaid' ?>"><?= e(ucfirst((string) $g['invoice_status'])) ?></span></div>
+                                <?php else: ?><span class="text-muted">&mdash;</span><?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<p class="text-muted mt-2" style="font-size:12px">
+    <i class="fa-solid fa-circle-info me-1"></i>
+    Authors add these people in their registration form. Only submitted or verified registrations are counted;
+    the numbers planned in the confirmation form are in <a href="<?= e(admin_url('confirmations.php')) ?>">Confirmations</a>.
+</p>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var table = new DataTable('#guestTable', {
+        order: [[3, 'asc']],
+        pageLength: 25,
+        columnDefs: [{ targets: 0, orderable: false, searchable: false }],
+        language: {
+            search: '',
+            searchPlaceholder: 'Search name, affiliation, paper…',
+            emptyTable: 'No author has added a non-presenter yet.',
+            zeroRecords: 'No one matches your search.',
+            info: 'Showing _START_ to _END_ of _TOTAL_ people',
+            infoEmpty: 'No people',
+            infoFiltered: '(filtered from _MAX_ total)'
+        }
+    });
+    table.on('draw', function () {
+        var start = table.page.info().start;
+        table.column(0, { search: 'applied', order: 'applied', page: 'current' }).nodes().each(function (cell, i) {
+            cell.textContent = start + i + 1;
+        });
+    });
+    table.draw(false);
+});
+</script>

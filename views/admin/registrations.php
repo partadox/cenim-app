@@ -96,6 +96,7 @@ $cards = [
                         <th class="text-end">Total</th>
                         <th>Status</th>
                         <th>Submitted</th>
+                        <th>Note</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>

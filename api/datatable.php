@@ -199,6 +199,7 @@ switch ($table) {
                 'total'             => ['select' => 'r.total', 'searchable' => false],
                 'status'            => ['select' => 'r.status', 'searchable' => false],
                 'submitted_at'      => ['select' => 'r.submitted_at', 'searchable' => false],
+                'admin_note'        => ['select' => "COALESCE(r.admin_note, '')", 'orderable' => false],
                 'docs'              => ['select' => 'r.id', 'searchable' => false, 'orderable' => false],
                 'actions'           => ['select' => 'r.id', 'searchable' => false, 'orderable' => false],
             ],
@@ -251,9 +252,16 @@ switch ($table) {
                     'submitted_at'      => $row['submitted_at'] === null
                         ? '<span class="text-muted">&mdash;</span>'
                         : '<span class="text-muted" style="font-size:12px">' . e(fmt_dt((string) $row['submitted_at'])) . '</span>',
-                    'actions'           => '<a class="btn btn-sm btn-outline-secondary" href="'
+                    'admin_note'        => $row['admin_note'] !== ''
+                        ? '<div style="font-size:12px;max-width:240px;white-space:pre-line">' . e((string) $row['admin_note']) . '</div>'
+                        : '<span class="text-muted">&mdash;</span>',
+                    'actions'           => '<div class="d-flex gap-1 justify-content-end">'
+                        . '<button type="button" class="btn btn-sm btn-outline-secondary cn-note" title="' . ($row['admin_note'] !== '' ? 'Edit note' : 'Add note') . '"'
+                        . ' data-id="' . $id . '" data-paper="' . e((string) $row['paper_id']) . '" data-note="' . e((string) $row['admin_note']) . '">'
+                        . '<i class="fa-regular fa-note-sticky"></i></button>'
+                        . '<a class="btn btn-sm btn-outline-secondary text-nowrap" href="'
                         . e(admin_url('registration-view.php?id=' . $id)) . '">'
-                        . '<i class="fa-solid fa-eye me-1"></i>Review</a>',
+                        . '<i class="fa-solid fa-eye me-1"></i>Review</a></div>',
                 ];
             },
         ]);

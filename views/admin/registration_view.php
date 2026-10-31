@@ -47,6 +47,14 @@ $isParticipantReg = str_starts_with((string) $registration['paper_id'], Cenim\Do
     </a>
 </div>
 
+<?php if (($registration['admin_note'] ?? '') !== ''): ?>
+    <div class="alert alert-light border py-2 px-3" style="font-size:12.5px">
+        <i class="fa-regular fa-note-sticky me-1" style="color:var(--cn-navy)"></i>
+        <b>Admin note</b> <span class="text-muted">(not shown to the author, edit it in the Registrations list)</span>
+        <div class="mt-1" style="white-space:pre-line"><?= e((string) $registration['admin_note']) ?></div>
+    </div>
+<?php endif; ?>
+
 <?php if ($status === RegistrationRepo::STATUS_DRAFT): ?>
     <div class="alert alert-secondary" style="font-size:13px">
         <i class="fa-solid fa-circle-info me-1"></i>

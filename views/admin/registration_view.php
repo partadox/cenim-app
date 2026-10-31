@@ -292,11 +292,31 @@ $isParticipantReg = str_starts_with((string) $registration['paper_id'], Cenim\Do
             <div class="cn-card-body">
                 <table class="table table-sm mb-2" style="font-size:13px">
                     <tbody>
+                        <?php
+                        // Tombol hapus peserta tambahan: hanya selama invoice belum lunas.
+                        $canRemoveGuest = $reviewed && !(($invoice ?? null) !== null && (string) $invoice['status'] === InvoiceRepo::STATUS_PAID);
+                        ?>
                         <?php foreach ($recalculated['items'] as $item): ?>
+                            <?php
+                            $guest = isset($item['attendee']) ? ($attendees[(int) $item['attendee']] ?? null) : null;
+                            if ($guest !== null && !str_ends_with((string) $item['description'], trim((string) $guest['name']))) {
+                                $guest = null; // urutan tidak cocok: jangan tawarkan hapus
+                            }
+                            ?>
                             <tr>
                                 <td><?= e((string) $item['description']) ?></td>
                                 <td class="text-end" style="white-space:nowrap">
                                     <?= e(fmt_money((float) $item['amount'], (string) $recalculated['currency'])) ?>
+                                    <?php if ($guest !== null && $canRemoveGuest): ?>
+                                        <form method="post" class="d-inline ms-1"
+                                              onsubmit="return confirm(<?= e(json_encode('Remove ' . $guest['name'] . ' from this registration? The fee is recalculated' . (($invoice ?? null) !== null ? ', and the unpaid invoice is voided and issued again (emailed to the author).' : '.'))) ?>);">
+                                            <?= Csrf::field() ?>
+                                            <input type="hidden" name="action" value="remove_attendee">
+                                            <input type="hidden" name="attendee_id" value="<?= (int) $guest['id'] ?>">
+                                            <input type="hidden" name="reissue" value="1">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Remove this attendee"><i class="fa-solid fa-minus"></i></button>
+                                        </form>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

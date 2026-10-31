@@ -4,6 +4,8 @@
  * action=adjust: admin membetulkan jumlah halaman (final pages paper) dan
  * kategori biaya (student / IEEE), biaya dihitung ulang dan disimpan; invoice
  * yang belum dibayar (dan belum ada bukti bayar) di-void lalu diterbitkan ulang.
+ * action=remove_attendee: hapus satu peserta tambahan (non-presenter) yang
+ * keliru diinput, lalu biaya dihitung ulang dengan cara yang sama.
  */
 
 declare(strict_types=1);
@@ -52,9 +54,18 @@ if (is_post()) {
         'loginUrl'      => full_url(author_url('login.php')),
     ];
 
-    if ($action === 'adjust') {
-        $back    = admin_url('registration-view.php?id=' . $id);
-        $invoice = InvoiceRepo::findForRegistration($id);
+    if ($action === 'adjust' || $action === 'remove_attendee') {
+        $back     = admin_url('registration-view.php?id=' . $id);
+        $invoice  = InvoiceRepo::findForRegistration($id);
+        $removing = $action === 'remove_attendee';
+        $guest    = $removing ? Cenim\Core\Db::one(
+            'SELECT * FROM registration_attendees WHERE id = ? AND registration_id = ?',
+            [input_int('attendee_id'), $id]
+        ) : null;
+        if ($removing && $guest === null) {
+            Session::flash('error', 'Additional attendee not found.');
+            Response::redirect($back);
+        }
 
         if ($invoice !== null && (string) $invoice['status'] === InvoiceRepo::STATUS_PAID) {
             Session::flash('error', 'Invoice ' . $invoice['number'] . ' is already paid, so the fee can no longer be changed here.');
@@ -71,7 +82,7 @@ if (is_post()) {
         // Peserta non-presenter (NP-) tidak punya paper → halaman tidak diubah.
         $isParticipantReg = Cenim\Domain\ParticipantRepo::isParticipant(['paper_status' => AuthorRepo::find((int) $registration['author_id'])['paper_status'] ?? '']);
         $pages            = (int) $registration['total_pages'];
-        if (!$isParticipantReg) {
+        if (!$isParticipantReg && !$removing) {
             $pagesRaw = trim((string) input('pages', ''));
             if (!ctype_digit($pagesRaw) || (int) $pagesRaw < 1 || (int) $pagesRaw > 200) {
                 Session::flash('error', 'Pages must be a number between 1 and 200.');
@@ -82,7 +93,7 @@ if (is_post()) {
 
         // Kategori: hanya untuk presenter tanpa paket; menentukan student / IEEE.
         $flags = ['is_student' => (int) $registration['is_student'], 'is_ieee_member' => (int) $registration['is_ieee_member']];
-        if ((string) $registration['participant_type'] !== 'non_presenter' && ($registration['package_id'] ?? null) === null) {
+        if (!$removing && (string) $registration['participant_type'] !== 'non_presenter' && ($registration['package_id'] ?? null) === null) {
             $category = Cenim\Core\Db::one(
                 'SELECT * FROM fee_categories WHERE id = ? AND edition_id = ? AND is_presenter = 1',
                 [input_int('fee_category_id'), $editionId]
@@ -96,6 +107,12 @@ if (is_post()) {
 
         $before = ['pages' => (int) $registration['total_pages'], 'category' => (string) ($registration['fee_label'] ?? ''), 'total' => (float) $registration['total']];
 
+        if ($guest !== null) {
+            // Sertifikat orang ini (bila sudah terbit) ikut dihapus.
+            Cenim\Core\Db::run("DELETE FROM certificates WHERE recipient_ref_type = 'registration_attendee' AND recipient_ref_id = ?", [(int) $guest['id']]);
+            Cenim\Core\Db::delete('registration_attendees', 'id = ?', [(int) $guest['id']]);
+        }
+
         $quote = FeeEngine::quote($editionId, RegistrationRepo::quoteInput($flags + $registration, [
             'country'     => $registration['author_country'] ?? null,
             'total_pages' => $pages,
@@ -105,7 +122,7 @@ if (is_post()) {
             Response::redirect($back);
         }
 
-        if (!$isParticipantReg) {
+        if (!$isParticipantReg && !$removing) {
             AuthorRepo::setFinalPages((int) $registration['author_id'], $pages);
         }
         Cenim\Core\Db::update('registrations', $flags + [
@@ -118,21 +135,23 @@ if (is_post()) {
             'updated_at'      => now(),
         ], 'id = :target_id', ['target_id' => $id]);
 
-        Audit::log('registration.adjusted', [
+        Audit::log($removing ? 'registration.attendee_removed' : 'registration.adjusted', [
             'actor_type'  => 'admin',
             'actor_id'    => 'admin',
             'target_type' => 'registration',
             'target_id'   => $id,
             'meta'        => ['paper_id' => $registration['paper_id'], 'before' => $before,
-                'after' => ['pages' => $pages, 'category' => $quote['category']['label'] ?? '', 'total' => (float) $quote['total']]],
+                'after' => ['pages' => $pages, 'category' => $quote['category']['label'] ?? '', 'total' => (float) $quote['total']]]
+                + ($guest !== null ? ['removed_attendee' => ['name' => $guest['name'], 'email' => $guest['email']]] : []),
         ]);
 
-        $message = 'Fee updated: ' . fmt_money((float) $quote['total'], (string) $quote['currency']) . '.';
+        $message = ($guest !== null ? 'Additional attendee "' . $guest['name'] . '" removed. ' : '')
+            . 'Fee updated: ' . fmt_money((float) $quote['total'], (string) $quote['currency']) . '.';
 
         // Invoice belum dibayar dengan nominal lama → void dan terbitkan ulang (author mendapat email invoice baru).
         if ($invoice !== null && abs((float) $invoice['total'] - (float) $quote['total']) > 0.009) {
             if (input('reissue') !== null) {
-                InvoiceRepo::void((int) $invoice['id'], 'Fee adjusted by admin (pages/category).');
+                InvoiceRepo::void((int) $invoice['id'], $removing ? 'Additional attendee removed by admin.' : 'Fee adjusted by admin (pages/category).');
                 $issued   = InvoiceRepo::issueForRegistration($id);
                 $message .= $issued['error'] !== null
                     ? ' Invoice ' . $invoice['number'] . ' was voided, but a new one could not be issued: ' . $issued['error']

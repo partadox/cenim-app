@@ -299,12 +299,13 @@ final class FeeEngine
             return false;
         }
 
-        foreach ($attendees as $name) {
+        foreach ($attendees as $index => $name) {
             $quote['items'][] = [
                 'description' => 'Additional attendee (non-presenter): ' . trim($name),
                 'qty'         => 1.0,
                 'unit_price'  => $fee,
                 'amount'      => $fee,
+                'attendee'    => $index, // urutan di RegistrationRepo::attendees() (tombol hapus di halaman admin)
             ];
         }
         $quote['attendees']        = count($attendees);

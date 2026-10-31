@@ -92,6 +92,9 @@ if ($path === null) {
     Response::abort(404, 'The stored file is no longer available.');
 }
 
-$inline = in_array((string) $file['mime'], ['application/pdf', 'image/jpeg', 'image/png'], true);
+// Jenis file dari catatan upload (sudah divalidasi dari isinya), bukan tebakan
+// ulang dari berkas cache: gambar dibuka sebagai gambar, PDF sebagai PDF.
+$mime   = (string) ($file['mime'] ?? '');
+$inline = in_array($mime, ['application/pdf', 'image/jpeg', 'image/png'], true);
 
-Response::file($path, (string) ($file['original_name'] ?? basename($path)), $inline);
+Response::file($path, (string) ($file['original_name'] ?? basename($path)), $inline, $inline ? $mime : null);

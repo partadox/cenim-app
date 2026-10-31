@@ -88,13 +88,14 @@ final class Response
         exit;
     }
 
-    public static function file(string $absolutePath, ?string $downloadName = null, bool $inline = false): never
+    /** @param string|null $mime jenis file yang sudah diketahui (mis. tercatat saat upload); null = deteksi dari isi */
+    public static function file(string $absolutePath, ?string $downloadName = null, bool $inline = false, ?string $mime = null): never
     {
         if (!is_file($absolutePath) || !is_readable($absolutePath)) {
             self::abort(404, 'File not found.');
         }
 
-        $mime = mime_content_type($absolutePath) ?: 'application/octet-stream';
+        $mime = $mime !== null && $mime !== '' ? $mime : (mime_content_type($absolutePath) ?: 'application/octet-stream');
         $name = $downloadName ?? basename($absolutePath);
 
         if (!headers_sent()) {

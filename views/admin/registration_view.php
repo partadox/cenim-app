@@ -273,6 +273,21 @@ $isParticipantReg = str_starts_with((string) $registration['paper_id'], Cenim\Do
                                             uploaded <?= e(fmt_dt((string) $file['uploaded_at'])) ?>
                                             &middot; <?= e((string) $file['driver']) ?>
                                         </div>
+                                        <?php $fileUrl = app_url('public/file.php?id=' . (int) $file['id']); ?>
+                                        <?php if (str_starts_with((string) $file['mime'], 'image/')): ?>
+                                            <a href="<?= e($fileUrl) ?>" target="_blank" rel="noopener" class="d-inline-block mt-2">
+                                                <img src="<?= e($fileUrl) ?>" alt="<?= e((string) $file['original_name']) ?>" loading="lazy"
+                                                     style="max-width:100%;max-height:420px;border:1px solid var(--cn-border);border-radius:8px">
+                                            </a>
+                                        <?php elseif ((string) $file['mime'] === 'application/pdf'): ?>
+                                            <details class="mt-2">
+                                                <summary style="font-size:12px;cursor:pointer;color:var(--cn-navy)">Preview PDF</summary>
+                                                <object data="<?= e($fileUrl) ?>" type="application/pdf"
+                                                        style="width:100%;height:460px;border:1px solid var(--cn-border);border-radius:8px" class="mt-2">
+                                                    <p class="text-muted p-3" style="font-size:13px">Preview not available in this browser. Use the link above.</p>
+                                                </object>
+                                            </details>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

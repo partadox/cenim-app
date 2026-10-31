@@ -44,6 +44,11 @@ if ($editionId === 0 || $author === null) {
     Response::abort(503, 'Registration is not available right now.');
 }
 
+if (Cenim\Domain\AuthorRepo::isWithdrawn($author)) {
+    Session::flash('info', 'This paper has been withdrawn, so no registration is needed.');
+    Response::redirect(author_url('index.php'));
+}
+
 // Paper edisi lama tanpa registrasi: tidak ada yang bisa ditampilkan/dibuat.
 if (edition_is_archive() && RegistrationRepo::findByAuthor((int) $author['id']) === null) {
     Session::flash('info', ($edition['name'] ?? 'This edition') . ' has ended; this paper was not registered.');

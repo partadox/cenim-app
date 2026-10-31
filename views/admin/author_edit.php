@@ -72,6 +72,7 @@ $cls = static fn (string $field): string => isset($errors[$field]) ? ' is-invali
                                 <?php endforeach; ?>
                             </select>
                             <?= $err('paper_status') ?>
+                            <div class="form-text" style="font-size:11.5px">Withdrawn: no confirmation, registration or payment in the Portal.</div>
                         </div>
                     </div>
                 </div>

@@ -12,6 +12,7 @@
  * @var array|null $invoice
  * @var array|null $receipt
  * @var bool       $loaAvailable
+ * @var bool       $withdrawn     paper ditarik: tanpa confirmation & langkah registrasi
  * @var array      $certificates  sertifikat semua author paper terpilih (termasuk award)
  * @var array      $committeeCertificates
  * @var bool       $certificatesReleased
@@ -413,6 +414,17 @@ $certificateList = static function (array $items, bool $released, string $from, 
         </div>
     <?php endif; ?>
 
+    <?php if (!empty($withdrawn)): ?>
+        <div class="alert alert-secondary d-flex align-items-start gap-2" style="font-size:13px">
+            <i class="fa-solid fa-ban mt-1"></i>
+            <div>
+                <b>This paper has been withdrawn.</b>
+                No confirmation, registration or payment is needed for it. If this is a mistake, please contact the secretariat.
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($steps !== []): ?>
     <div class="cn-steps<?= count($steps) === 4 ? ' cn-steps-4' : '' ?> mb-3">
         <?php foreach ($steps as $step): ?>
             <?php $class = match ($step['state']) { 'done' => 'is-done', 'active' => 'is-active', default => '' }; ?>
@@ -441,6 +453,7 @@ $certificateList = static function (array $items, bool $released, string $from, 
             </div>
         <?php endforeach; ?>
     </div>
+    <?php endif; ?>
 
     <div class="cn-card">
         <div class="cn-card-head">

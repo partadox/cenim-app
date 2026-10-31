@@ -104,9 +104,14 @@ switch ($table) {
                     default    => 'cn-badge-rejected',
                 };
 
+                $withdrawn = (string) $row['paper_status'] === Cenim\Domain\AuthorRepo::STATUS_WITHDRAWN;
                 $actions = '<div class="d-flex gap-1 justify-content-end">'
                     . '<a class="btn btn-sm btn-outline-secondary" title="Edit" href="'
                     . e(admin_url('author-edit.php?id=' . $id)) . '"><i class="fa-solid fa-pen"></i></a>'
+                    . '<button type="button" class="btn btn-sm btn-outline-' . ($withdrawn ? 'success' : 'warning') . ' cn-withdraw"'
+                    . ' title="' . ($withdrawn ? 'Restore to accepted' : 'Mark as withdrawn') . '"'
+                    . ' data-id="' . $id . '" data-paper="' . e((string) $row['paper_id']) . '" data-status="' . ($withdrawn ? 'accepted' : 'withdrawn') . '">'
+                    . '<i class="fa-solid ' . ($withdrawn ? 'fa-rotate-left' : 'fa-ban') . '"></i></button>'
                     . '<button type="button" class="btn btn-sm btn-outline-danger cn-delete" title="Delete"'
                     . ' data-id="' . $id . '" data-name="' . e($row['first_author_name']) . '">'
                     . '<i class="fa-solid fa-trash"></i></button>'
@@ -286,7 +291,7 @@ switch ($table) {
                 'status'            => ['select' => 'i.status', 'searchable' => false],
                 'actions'           => ['select' => 'i.id', 'searchable' => false, 'orderable' => false],
             ],
-            'extra_select' => ['id' => 'i.id', 'currency' => 'i.currency'],
+            'extra_select' => ['id' => 'i.id', 'currency' => 'i.currency', 'waived_at' => 'i.waived_at'],
             'where'        => $where,
             'params'       => $params,
             'default_order' => ['number', 'desc'],
@@ -319,7 +324,8 @@ switch ($table) {
                     'total'             => '<b>' . e(fmt_money((float) $row['total'], (string) $row['currency'])) . '</b>',
                     'status'            => '<span class="cn-badge '
                         . e(Cenim\Domain\InvoiceRepo::statusBadgeClass($status)) . '">'
-                        . e(ucfirst($status)) . '</span>',
+                        . e(ucfirst($status)) . '</span>'
+                        . ($row['waived_at'] !== null ? ' <span class="cn-badge cn-badge-draft" title="Fee waived, not counted as income">waived</span>' : ''),
                     'actions'           => $actions,
                 ];
             },

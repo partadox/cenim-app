@@ -76,6 +76,43 @@
         }
     });
 
+    // Withdraw / kembalikan ke accepted.
+    document.querySelector('#authorsTable tbody')?.addEventListener('click', function (event) {
+        var button = event.target.closest('.cn-withdraw');
+        if (!button) { return; }
+        var withdraw = button.dataset.status === 'withdrawn';
+
+        Swal.fire({
+            title: withdraw ? 'Mark paper ' + button.dataset.paper + ' as withdrawn?' : 'Restore paper ' + button.dataset.paper + ' to accepted?',
+            html: '<span style="font-size:13px;color:#6b7893">' + (withdraw
+                ? 'The authors no longer see the confirmation form, registration and payment steps in the Portal.'
+                : 'The authors can fill in the confirmation form and register again.') + '</span>',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: withdraw ? 'Withdraw' : 'Restore',
+            confirmButtonColor: withdraw ? '#8a5a06' : '#12704a',
+            cancelButtonText: 'Cancel'
+        }).then(function (result) {
+            if (!result.isConfirmed) { return; }
+            var body = new FormData();
+            body.append('id', button.dataset.id);
+            body.append('status', button.dataset.status);
+            body.append('csrf_token', window.CENIM.csrf);
+
+            fetch(window.CENIM.adminUrl + 'author-status.php', {
+                method: 'POST',
+                body: body,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then(function (response) { return response.json(); })
+                .then(function (json) {
+                    cnToast(json.ok ? json.message : (json.error || 'Failed.'), json.ok ? 'success' : 'error');
+                    if (json.ok) { table.ajax.reload(null, false); }
+                })
+                .catch(function () { cnToast('Failed. Please try again.', 'error'); });
+        });
+    });
+
     document.querySelector('#authorsTable tbody')?.addEventListener('click', function (event) {
         var button = event.target.closest('.cn-delete');
         if (!button) { return; }

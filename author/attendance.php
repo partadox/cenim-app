@@ -34,7 +34,7 @@ if ($paper === null || $editionId === 0) {
     Response::abort(503, 'The video presentation form is not available right now.');
 }
 
-if (Cenim\Domain\ParticipantRepo::isParticipant($paper)) {
+if (Cenim\Domain\ParticipantRepo::isParticipant($paper) || Cenim\Domain\AuthorRepo::isWithdrawn($paper)) {
     Response::redirect(author_url('index.php')); // peserta non-presenter tidak presentasi
 }
 

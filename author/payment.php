@@ -31,6 +31,11 @@ if ($author === null || $editionId === 0) {
     Response::abort(503, 'Payment is not available right now.');
 }
 
+if (Cenim\Domain\AuthorRepo::isWithdrawn($author)) {
+    Session::flash('info', 'This paper has been withdrawn, so no payment is needed.');
+    Response::redirect(author_url('index.php'));
+}
+
 $invoice = InvoiceRepo::findForAuthor((int) $author['id']);
 
 if ($invoice === null) {

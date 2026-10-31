@@ -95,7 +95,7 @@ final class InvoiceRepo
      *
      * @return array{invoice:?array, created:bool, error:?string}
      */
-    public static function issueForRegistration(int $registrationId, string $actor = 'admin'): array
+    public static function issueForRegistration(int $registrationId, string $actor = 'admin', bool $notify = true): array
     {
         $registration = RegistrationRepo::findWithAuthor($registrationId);
 
@@ -176,7 +176,9 @@ final class InvoiceRepo
 
         $invoice = self::find($invoiceId);
 
-        self::notify($invoice ?? [], $registration);
+        if ($notify) {
+            self::notify($invoice ?? [], $registration);
+        }
 
         Audit::log('invoice.issued', [
             'actor_type'  => $actor === 'system' ? 'system' : 'admin',
@@ -245,6 +247,70 @@ final class InvoiceRepo
         ]);
     }
 
+    /**
+     * Gratiskan biaya registrasi (mis. paper dari host): registrasi diverifikasi,
+     * invoice diterbitkan bila belum ada (tanpa email tagihan), lalu dicatat
+     * pembayaran "Fee waived" bernominal 0 yang langsung dikonfirmasi → invoice
+     * paid + receipt 0. Tidak dihitung pendapatan (totals() memisahkannya).
+     *
+     * @return array{invoice:?array, receipt:?array, error:?string}
+     */
+    public static function waive(int $registrationId, string $note, string $actor = 'admin'): array
+    {
+        $registration = RegistrationRepo::find($registrationId);
+        if ($registration === null) {
+            return ['invoice' => null, 'receipt' => null, 'error' => 'Registration not found.'];
+        }
+        if ((string) $registration['status'] === RegistrationRepo::STATUS_DRAFT) {
+            return ['invoice' => null, 'receipt' => null, 'error' => 'The registration has not been submitted yet.'];
+        }
+
+        $existing = self::findForRegistration($registrationId);
+        if ($existing !== null && (string) $existing['status'] === self::STATUS_PAID) {
+            return ['invoice' => $existing, 'receipt' => null, 'error' => 'Invoice ' . $existing['number'] . ' is already paid.'];
+        }
+
+        if ((string) $registration['status'] !== RegistrationRepo::STATUS_VERIFIED) {
+            RegistrationRepo::verify($registrationId, $actor);
+        }
+
+        $issued = self::issueForRegistration($registrationId, $actor, false);
+        if ($issued['error'] !== null || $issued['invoice'] === null) {
+            return ['invoice' => null, 'receipt' => null, 'error' => (string) ($issued['error'] ?? 'The invoice could not be issued.')];
+        }
+        $invoice = $issued['invoice'];
+        $note    = trim($note) !== '' ? mb_substr(trim($note), 0, 500) : 'Registration fee waived by the committee.';
+
+        $paymentId = PaymentRepo::submit((int) $invoice['edition_id'], (int) $invoice['id'], [
+            'method'      => 'waived',
+            'amount_paid' => 0.0,
+            'currency'    => (string) $invoice['currency'],
+            'paid_at'     => gmdate('Y-m-d'),
+            'bank_name'   => null,
+            'sender_name' => null,
+            'reference'   => null,
+            'note'        => $note,
+        ]);
+        Db::update('invoices', ['waived_at' => now(), 'waived_note' => $note, 'updated_at' => now()], 'id = :target_id', ['target_id' => (int) $invoice['id']]);
+
+        $confirmed = PaymentRepo::confirm($paymentId, $actor);
+
+        Audit::log('invoice.waived', [
+            'actor_type'  => 'admin',
+            'actor_id'    => $actor,
+            'target_type' => 'invoice',
+            'target_id'   => (int) $invoice['id'],
+            'meta'        => ['number' => $invoice['number'], 'total' => (float) $invoice['total'], 'currency' => $invoice['currency'], 'note' => $note],
+        ]);
+
+        return ['invoice' => self::find((int) $invoice['id']), 'receipt' => $confirmed['receipt'], 'error' => $confirmed['error']];
+    }
+
+    public static function isWaived(?array $invoice): bool
+    {
+        return ($invoice['waived_at'] ?? null) !== null;
+    }
+
     /** Dipakai Fase 5 saat pembayaran dikonfirmasi. */
     public static function markPaid(int $id): void
     {
@@ -280,8 +346,10 @@ final class InvoiceRepo
         $totals = [];
 
         foreach (Db::all(
-            'SELECT currency, status, SUM(total) AS amount FROM invoices
-             WHERE edition_id = ? GROUP BY currency, status',
+            // Invoice waived dipisah ("waived"): lunas tetapi bukan pendapatan.
+            "SELECT currency, CASE WHEN waived_at IS NOT NULL THEN 'waived' ELSE status END AS status, SUM(total) AS amount
+             FROM invoices WHERE edition_id = ? GROUP BY currency, CASE WHEN waived_at IS NOT NULL THEN 'waived' ELSE status END",
+
             [$editionId]
         ) as $row) {
             $totals[(string) $row['currency']][(string) $row['status']] = (float) $row['amount'];

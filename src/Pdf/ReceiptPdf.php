@@ -41,6 +41,7 @@ final class ReceiptPdf extends PdfBase
     {
         $editionId = (int) $receipt['edition_id'];
         $currency  = (string) $receipt['currency'];
+        $waived    = (string) ($receipt['method'] ?? '') === 'waived';
 
         $pdf = new self();
         $pdf->SetTitle('Receipt ' . $receipt['number']);
@@ -52,7 +53,7 @@ final class ReceiptPdf extends PdfBase
             'Issued'      => fmt_date((string) $receipt['issued_at']),
             'Invoice No.' => (string) $receipt['invoice_number'],
             'Currency'    => $currency,
-        ], ['text' => 'PAID', 'color' => [18, 112, 74]]);
+        ], ['text' => $waived ? 'WAIVED' : 'PAID', 'color' => [18, 112, 74]]);
 
         $pdf->Ln(2);
 
@@ -89,7 +90,12 @@ final class ReceiptPdf extends PdfBase
             ? fmt_date((string) $receipt['paid_at'] . (strlen((string) $receipt['paid_at']) <= 10 ? ' 00:00:00' : ''))
             : '-';
 
-        $rows = [
+        $rows = $waived ? [
+            'Payment method'     => \Cenim\Domain\PaymentRepo::methodLabel('waived'),
+            'Note'               => (string) ($receipt['payment_note'] ?? '') !== '' ? (string) $receipt['payment_note'] : 'Registration fee waived by the committee.',
+            'Confirmed by'       => 'Conference secretariat, ' . fmt_dt((string) $receipt['confirmed_at'], 'd M Y'),
+            'Invoice amount'     => fmt_money((float) $receipt['invoice_total'], (string) $receipt['invoice_currency']) . ' (waived)',
+        ] : [
             'Payment method'     => \Cenim\Domain\PaymentRepo::methodLabel((string) $receipt['method']),
             'Transfer date'      => $paidAt,
             'Sender name'        => (string) ($receipt['sender_name'] ?? '-'),

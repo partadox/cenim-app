@@ -32,6 +32,13 @@ final class AuthorRepo
     public const REQUIRED_FIELDS = ['paper_id', 'first_author_name', 'email'];
 
     public const PAPER_STATUSES = ['accepted', 'pending', 'rejected', 'withdrawn'];
+    public const STATUS_WITHDRAWN = 'withdrawn';
+
+    /** Paper ditarik (withdrawn): tidak ikut confirmation, registrasi, pembayaran, dan video. */
+    public static function isWithdrawn(?array $paper): bool
+    {
+        return (string) ($paper['paper_status'] ?? '') === self::STATUS_WITHDRAWN;
+    }
 
     public static function find(int $id): ?array
     {

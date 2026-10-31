@@ -12,7 +12,7 @@ $people = max(1, (int) $stats['people']);
 
 $paperCards = [
     ['label' => 'Papers',          'value' => $stats['papers'],       'icon' => 'fa-file-lines',
-     'note' => $stats['papers'] > 0 ? round($stats['accepted'] / $stats['papers'] * 100) . '% accepted' : '', 'href' => admin_url('authors.php')],
+     'note' => ($stats['papers'] > 0 ? round($stats['accepted'] / $stats['papers'] * 100) . '% accepted · ' : '') . $stats['withdrawn'] . ' withdrawn', 'href' => admin_url('authors.php')],
     ['label' => 'Accepted papers', 'value' => $stats['accepted'],     'icon' => 'fa-circle-check', 'note' => '', 'href' => admin_url('authors.php')],
     ['label' => 'Authors',         'value' => $stats['people'],       'icon' => 'fa-users',
      'note' => $stats['author_slots'] . ' authorship(s)' . ($stats['no_email'] > 0 ? ' · ' . $stats['no_email'] . ' without email' : ''), 'href' => admin_url('authors.php')],

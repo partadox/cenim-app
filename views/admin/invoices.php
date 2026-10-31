@@ -42,7 +42,8 @@ $cards = [
                     <div class="col-md-6">
                         <div class="cn-stat-label mb-1"><?= e((string) $currency) ?> invoiced</div>
                         <div class="d-flex flex-wrap gap-3" style="font-size:13px">
-                            <?php foreach ([InvoiceRepo::STATUS_UNPAID => 'Unpaid', InvoiceRepo::STATUS_PAID => 'Paid'] as $key => $label): ?>
+                            <?php foreach ([InvoiceRepo::STATUS_UNPAID => 'Unpaid', InvoiceRepo::STATUS_PAID => 'Paid', 'waived' => 'Waived (not income)'] as $key => $label): ?>
+                                <?php if ($key === 'waived' && empty($byStatus['waived'])) { continue; } ?>
                                 <span>
                                     <span class="text-muted"><?= e($label) ?>:</span>
                                     <b style="color:var(--cn-navy)">

@@ -23,7 +23,7 @@ final class PaymentRepo
 
     public const STATUSES = [self::STATUS_SUBMITTED, self::STATUS_CONFIRMED, self::STATUS_REJECTED];
 
-    public const METHODS = ['bank_transfer', 'other'];
+    public const METHODS = ['bank_transfer', 'other', 'waived'];
 
     public static function find(int $id): ?array
     {
@@ -250,6 +250,7 @@ final class PaymentRepo
     {
         return match ($method) {
             'bank_transfer' => 'Bank transfer',
+            'waived'        => 'Fee waived',
             default         => 'Other',
         };
     }

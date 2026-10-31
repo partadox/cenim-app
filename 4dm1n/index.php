@@ -32,6 +32,7 @@ $byStatus = array_column($papers, 'n', 'paper_status');
 $stats += [
     'papers'          => array_sum(array_map('intval', $byStatus)),
     'accepted'        => (int) ($byStatus['accepted'] ?? 0),
+    'withdrawn'       => (int) ($byStatus['withdrawn'] ?? 0),
     'paper_statuses'  => $byStatus,
     'people'          => (int) Db::value("SELECT COUNT(DISTINCT $person) FROM paper_authors pa WHERE pa.edition_id = ? AND pa.author_id NOT IN (SELECT id FROM authors WHERE paper_status = 'attendee')", [$editionId]),
     'author_slots'    => (int) Db::value("SELECT COUNT(*) FROM paper_authors WHERE edition_id = ? AND author_id NOT IN (SELECT id FROM authors WHERE paper_status = 'attendee')", [$editionId]),

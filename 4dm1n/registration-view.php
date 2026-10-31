@@ -1,6 +1,9 @@
 <?php
 /**
  * Detail satu registrasi + aksi verify / reject.
+ * action=adjust: admin membetulkan jumlah halaman (final pages paper) dan
+ * kategori biaya (student / IEEE), biaya dihitung ulang dan disimpan; invoice
+ * yang belum dibayar (dan belum ada bukti bayar) di-void lalu diterbitkan ulang.
  */
 
 declare(strict_types=1);
@@ -48,6 +51,112 @@ if (is_post()) {
         'amount'        => fmt_money((float) $registration['total'], (string) $registration['currency']),
         'loginUrl'      => full_url(author_url('login.php')),
     ];
+
+    if ($action === 'adjust') {
+        $back    = admin_url('registration-view.php?id=' . $id);
+        $invoice = InvoiceRepo::findForRegistration($id);
+
+        if ($invoice !== null && (string) $invoice['status'] === InvoiceRepo::STATUS_PAID) {
+            Session::flash('error', 'Invoice ' . $invoice['number'] . ' is already paid, so the fee can no longer be changed here.');
+            Response::redirect($back);
+        }
+        $hasPayment = $invoice !== null
+            && Cenim\Core\Db::value('SELECT 1 FROM payments WHERE invoice_id = ? LIMIT 1', [(int) $invoice['id']]) !== null;
+        if ($hasPayment) {
+            Session::flash('error', 'A payment has already been uploaded for invoice ' . $invoice['number'] . '. Reject or resolve the payment first.');
+            Response::redirect($back);
+        }
+
+        // Halaman: disimpan sebagai final pages paper (dipakai semua hitungan biaya).
+        // Peserta non-presenter (NP-) tidak punya paper → halaman tidak diubah.
+        $isParticipantReg = Cenim\Domain\ParticipantRepo::isParticipant(['paper_status' => AuthorRepo::find((int) $registration['author_id'])['paper_status'] ?? '']);
+        $pages            = (int) $registration['total_pages'];
+        if (!$isParticipantReg) {
+            $pagesRaw = trim((string) input('pages', ''));
+            if (!ctype_digit($pagesRaw) || (int) $pagesRaw < 1 || (int) $pagesRaw > 200) {
+                Session::flash('error', 'Pages must be a number between 1 and 200.');
+                Response::redirect($back);
+            }
+            $pages = (int) $pagesRaw;
+        }
+
+        // Kategori: hanya untuk presenter tanpa paket; menentukan student / IEEE.
+        $flags = ['is_student' => (int) $registration['is_student'], 'is_ieee_member' => (int) $registration['is_ieee_member']];
+        if ((string) $registration['participant_type'] !== 'non_presenter' && ($registration['package_id'] ?? null) === null) {
+            $category = Cenim\Core\Db::one(
+                'SELECT * FROM fee_categories WHERE id = ? AND edition_id = ? AND is_presenter = 1',
+                [input_int('fee_category_id'), $editionId]
+            );
+            if ($category === null) {
+                Session::flash('error', 'Please choose a fee category.');
+                Response::redirect($back);
+            }
+            $flags = ['is_student' => (int) $category['is_student'], 'is_ieee_member' => (int) $category['is_ieee']];
+        }
+
+        $before = ['pages' => (int) $registration['total_pages'], 'category' => (string) ($registration['fee_label'] ?? ''), 'total' => (float) $registration['total']];
+
+        $quote = FeeEngine::quote($editionId, RegistrationRepo::quoteInput($flags + $registration, [
+            'country'     => $registration['author_country'] ?? null,
+            'total_pages' => $pages,
+        ]));
+        if ($quote['error'] !== null) {
+            Session::flash('error', (string) $quote['error']);
+            Response::redirect($back);
+        }
+
+        if (!$isParticipantReg) {
+            AuthorRepo::setFinalPages((int) $registration['author_id'], $pages);
+        }
+        Cenim\Core\Db::update('registrations', $flags + [
+            'fee_category_id' => $quote['fee_category_id'],
+            'extra_pages'     => (int) $quote['extra_pages'],
+            'currency'        => (string) $quote['currency'],
+            'subtotal'        => (float) $quote['subtotal'],
+            'discount'        => (float) $quote['discount'],
+            'total'           => (float) $quote['total'],
+            'updated_at'      => now(),
+        ], 'id = :target_id', ['target_id' => $id]);
+
+        Audit::log('registration.adjusted', [
+            'actor_type'  => 'admin',
+            'actor_id'    => 'admin',
+            'target_type' => 'registration',
+            'target_id'   => $id,
+            'meta'        => ['paper_id' => $registration['paper_id'], 'before' => $before,
+                'after' => ['pages' => $pages, 'category' => $quote['category']['label'] ?? '', 'total' => (float) $quote['total']]],
+        ]);
+
+        $message = 'Fee updated: ' . fmt_money((float) $quote['total'], (string) $quote['currency']) . '.';
+
+        // Invoice belum dibayar dengan nominal lama → void dan terbitkan ulang (author mendapat email invoice baru).
+        if ($invoice !== null && abs((float) $invoice['total'] - (float) $quote['total']) > 0.009) {
+            if (input('reissue') !== null) {
+                InvoiceRepo::void((int) $invoice['id'], 'Fee adjusted by admin (pages/category).');
+                $issued   = InvoiceRepo::issueForRegistration($id);
+                $message .= $issued['error'] !== null
+                    ? ' Invoice ' . $invoice['number'] . ' was voided, but a new one could not be issued: ' . $issued['error']
+                    : ' Invoice ' . $invoice['number'] . ' was voided and ' . $issued['invoice']['number'] . ' was issued and emailed to the author.';
+            } else {
+                $message .= ' Invoice ' . $invoice['number'] . ' still shows the old amount; void it and issue a new one in Invoices.';
+            }
+        }
+
+        Session::flash('success', $message);
+        Response::redirect($back);
+    }
+
+    if ($action === 'waive') {
+        $result = InvoiceRepo::waive($id, (string) input('note', ''));
+
+        if ($result['error'] !== null && $result['receipt'] === null) {
+            Session::flash('error', 'The fee could not be waived: ' . $result['error']);
+        } else {
+            Session::flash('success', 'Registration fee waived. Invoice ' . ($result['invoice']['number'] ?? '')
+                . ' is marked as paid and receipt ' . ($result['receipt']['number'] ?? '') . ' was issued (0, not counted as income).');
+        }
+        Response::redirect(admin_url('registration-view.php?id=' . $id));
+    }
 
     if ($action === 'verify') {
         RegistrationRepo::verify($id);
@@ -146,6 +255,11 @@ View::render('admin/registration_view', [
         [(int) $registration['author_id']]
     ),
     'shirtOn'      => RegistrationRepo::shirtEnabled($editionId),
+    'categories'   => array_values(array_filter(
+        FeeEngine::categories($editionId, (string) $recalculated['currency']),
+        static fn (array $c): bool => (int) $c['is_presenter'] === 1
+    )),
+    'included'     => FeeEngine::includedPages($editionId),
     'confirmation' => Cenim\Domain\ConfirmationRepo::findForPaper((int) $registration['author_id']),
     'extraAnswers' => FormRepo::readable($extraFields, FormRepo::decode($registration['extra_json'] ?? null)),
 ], 'admin');

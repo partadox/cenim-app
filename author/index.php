@@ -331,6 +331,13 @@ $steps = [
 
 $steps = array_values(array_filter($steps));
 
+// Paper withdrawn: tidak ada confirmation dan langkah registrasi dst.
+$withdrawn = Cenim\Domain\AuthorRepo::isWithdrawn($author);
+if ($withdrawn) {
+    $steps = [];
+    $step0 = null;
+}
+
 // ── Sertifikat: terbit otomatis setelah tanggal rilis (idempoten) ────────────
 // Semua author paper ini, supaya satu author bisa mengunduhkan sertifikat rekannya.
 $paperAuthors = $author !== null ? PaperAuthorRepo::forPaper((int) $author['id']) : [];
@@ -394,6 +401,7 @@ View::render('author/dashboard', [
     'committeeCertificates' => $committeeCertificates,
     'certificatesReleased'  => $released,
     'steps'        => $steps,
+    'withdrawn'    => $withdrawn,
     'step0'        => $step0,
     'workshopCard' => $workshopCard,
     'documents'    => $author !== null ? Cenim\Domain\AuthorDocumentRepo::forAuthor((int) $author['id']) : [],

@@ -52,7 +52,7 @@ final class InvoicePdf extends PdfBase
         $pdf->AddPage();
 
         // ── Judul + metadata ────────────────────────────────────────────────
-        $stamp = match ((string) $invoice['status']) {
+        $stamp = InvoiceRepo::isWaived($invoice) ? ['text' => 'WAIVED', 'color' => [18, 112, 74]] : match ((string) $invoice['status']) {
             InvoiceRepo::STATUS_PAID => ['text' => 'PAID', 'color' => [18, 112, 74]],
             InvoiceRepo::STATUS_VOID => ['text' => 'VOID', 'color' => [163, 35, 31]],
             default                  => null,
@@ -113,12 +113,30 @@ final class InvoicePdf extends PdfBase
             $totals[] = ['Subtotal', fmt_money((float) $invoice['subtotal'], $currency)];
             $totals[] = ['Discount', '- ' . fmt_money((float) $invoice['discount'], $currency)];
         }
-        $totals[] = ['TOTAL DUE', fmt_money((float) $invoice['total'], $currency), true];
+        $waived = InvoiceRepo::isWaived($invoice);
+        if ($waived) {
+            // Nominal tetap tercatat untuk administrasi, tetapi tidak ditagihkan.
+            $totals[] = ['Total', fmt_money((float) $invoice['total'], $currency)];
+            $totals[] = ['Waived', '- ' . fmt_money((float) $invoice['total'], $currency)];
+            $totals[] = ['TOTAL DUE', fmt_money(0, $currency), true];
+        } else {
+            $totals[] = ['TOTAL DUE', fmt_money((float) $invoice['total'], $currency), true];
+        }
 
         $pdf->totalsBlock($totals);
         $pdf->Ln(4);
 
         // ── Instruksi pembayaran ────────────────────────────────────────────
+        if ($waived) {
+            $pdf->noteBlock('Fee waived', (string) ($invoice['waived_note'] ?? '') !== ''
+                ? (string) $invoice['waived_note'] . "\nNo payment is required for this registration."
+                : 'The registration fee is waived by the committee. No payment is required for this registration.');
+            $treasurer = SettingRepo::treasurer($editionId);
+            $pdf->signatureBlock($treasurer['name'], $treasurer['title'], BrandingRepo::signaturePath($editionId, 'treasurer'), 'Conference secretariat', self::stampFor($editionId));
+
+            return (string) $pdf->Output('S');
+        }
+
         $pdf->noteBlock('Payment instructions', self::bankInstructions($editionId, $currency));
 
         $note = trim((string) ($invoice['note'] ?? ''));

@@ -11,6 +11,8 @@
  * @var array|null $mainRegistration
  * @var array      $additionalPapers paper lain yang memakai paper ini sebagai paper utama
  * @var bool       $shirtOn
+ * @var array<int,array<string,mixed>> $categories kategori presenter (mata uang registrasi ini)
+ * @var int        $included   halaman yang termasuk biaya registrasi
  */
 
 use Cenim\Core\Csrf;
@@ -314,6 +316,63 @@ $isParticipantReg = str_starts_with((string) $registration['paper_id'], Cenim\Do
                         after submission. The invoice will use the amount at the time it is issued.
                     </div>
                 <?php endif; ?>
+
+                <?php
+                $invoicePaid  = ($invoice ?? null) !== null && (string) $invoice['status'] === InvoiceRepo::STATUS_PAID;
+                $showCategory = (string) $registration['participant_type'] !== 'non_presenter' && ($registration['package_id'] ?? null) === null && $categories !== [];
+                ?>
+                <?php if ($reviewed && !$invoicePaid && (!$isParticipantReg || $showCategory)): ?>
+                    <details class="mt-3" id="adjustBox"<?= input('adjust') !== null ? ' open' : '' ?>>
+                        <summary class="fw-semibold" style="font-size:13px;cursor:pointer;color:var(--cn-navy)">
+                            <i class="fa-solid fa-sliders me-1"></i>Adjust pages and category
+                        </summary>
+                        <form method="post" class="mt-2 border rounded p-3" style="font-size:13px"
+                              onsubmit="return confirm('Recalculate and save the fee of this registration?');">
+                            <?= Csrf::field() ?>
+                            <input type="hidden" name="action" value="adjust">
+
+                            <?php if (!$isParticipantReg): ?>
+                                <label class="form-label mb-1" for="adjPages">Pages (final manuscript)</label>
+                                <div class="d-flex align-items-center gap-2">
+                                    <input type="number" class="form-control form-control-sm" id="adjPages" name="pages" min="1" max="200" required
+                                           value="<?= (int) $registration['total_pages'] ?>" style="width:100px">
+                                    <span class="text-muted" style="font-size:12px">
+                                        review <?= (int) ($registration['review_pages'] ?? 0) ?><?= ($registration['final_pages'] ?? null) !== null ? ' · final ' . (int) $registration['final_pages'] : '' ?>
+                                        · <?= (int) $included ?> included, extra pages are charged
+                                    </span>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if ($showCategory): ?>
+                                <label class="form-label mb-1 mt-2" for="adjCategory">Fee category</label>
+                                <select class="form-select form-select-sm" id="adjCategory" name="fee_category_id" required>
+                                    <?php foreach ($categories as $category): ?>
+                                        <?php $current = (int) $category['is_student'] === (int) $registration['is_student'] && (int) $category['is_ieee'] === (int) $registration['is_ieee_member']; ?>
+                                        <option value="<?= (int) $category['id'] ?>" <?= $current ? 'selected' : '' ?>>
+                                            <?= e((string) $category['label']) ?> &mdash; <?= e(fmt_money((float) $category['amount'], (string) $category['currency'])) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <div class="form-text" style="font-size:11.5px">Sets the Student and IEEE member answers of this registration.</div>
+                            <?php endif; ?>
+
+                            <?php if (($invoice ?? null) !== null): ?>
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" id="adjReissue" name="reissue" value="1" checked>
+                                    <label class="form-check-label" for="adjReissue" style="font-size:12.5px">
+                                        If the amount changes, void invoice <?= e((string) $invoice['number']) ?> and issue a new one (emailed to the author)
+                                    </label>
+                                </div>
+                            <?php endif; ?>
+
+                            <button type="submit" class="btn btn-sm btn-navy mt-3">
+                                <i class="fa-solid fa-calculator me-1"></i>Recalculate &amp; save
+                            </button>
+                        </form>
+                    </details>
+                <?php elseif ($reviewed && $invoicePaid): ?>
+                    <p class="text-muted mt-2 mb-0" style="font-size:12px"><i class="fa-solid fa-lock me-1"></i>The invoice is paid, so the fee can no longer be adjusted.</p>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -323,7 +382,7 @@ $isParticipantReg = str_starts_with((string) $registration['paper_id'], Cenim\Do
                     <i class="fa-solid fa-file-invoice text-muted"></i>
                     <h2>Invoice</h2>
                     <span class="cn-badge <?= e(InvoiceRepo::statusBadgeClass((string) $invoice['status'])) ?> ms-auto">
-                        <?= e(ucfirst((string) $invoice['status'])) ?>
+                        <?= e(ucfirst((string) $invoice['status'])) ?><?= InvoiceRepo::isWaived($invoice) ? ' &middot; waived' : '' ?>
                     </span>
                 </div>
                 <div class="cn-card-body">
@@ -402,6 +461,24 @@ $isParticipantReg = str_starts_with((string) $registration['paper_id'], Cenim\Do
                             <i class="fa-solid fa-rotate-left me-1"></i>Return to the author
                         </button>
                     </form>
+
+                    <?php if (!$invoicePaid): ?>
+                        <hr>
+                        <form method="post" id="waiveForm"
+                              onsubmit="return confirm('Waive the registration fee of this paper? The invoice is marked as paid (not counted as income) and a receipt of 0 is issued.');">
+                            <?= Csrf::field() ?>
+                            <input type="hidden" name="action" value="waive">
+                            <label class="form-label" for="waiveNote" style="font-size:12.5px">
+                                Waive the fee (e.g. paper from the host) — marked as paid, counted as 0 income
+                            </label>
+                            <input type="text" class="form-control form-control-sm mb-2" id="waiveNote" name="note" maxlength="500"
+                                   placeholder="Note on the receipt, e.g. Host paper - registration fee waived">
+                            <button type="submit" class="btn btn-outline-success w-100">
+                                <i class="fa-solid fa-hand-holding-heart me-1"></i>Waive fee
+                            </button>
+                            <div class="form-text" style="font-size:11.5px">Verifies the registration if needed, issues the invoice (no payment email) and a receipt. Both stay downloadable.</div>
+                        </form>
+                    <?php endif; ?>
                 </div>
             </div>
         <?php endif; ?>

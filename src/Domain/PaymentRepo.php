@@ -102,6 +102,10 @@ final class PaymentRepo
             'extra_json'    => ($data['extra'] ?? []) === [] ? null : json_encode($data['extra'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
             'status'        => self::STATUS_SUBMITTED,
             'reject_reason' => null,
+            // Kiriman baru dari author menggantikan koreksi nominal sebelumnya.
+            'amount_reported'     => null,
+            'amount_note'         => null,
+            'amount_corrected_at' => null,
             'submitted_at'  => now(),
             'updated_at'    => now(),
         ];
@@ -174,6 +178,43 @@ final class PaymentRepo
         ]);
 
         return ['receipt' => $receipt, 'error' => null];
+    }
+
+    /**
+     * Koreksi nominal oleh admin (mis. setelah klarifikasi underpaid/overpaid
+     * dengan author). Nominal asli author disimpan sekali di amount_reported;
+     * receipt yang sudah terbit ikut diperbarui.
+     */
+    public static function correctAmount(int $id, float $amount, string $note, string $actor = 'admin'): void
+    {
+        $payment = self::find($id);
+        if ($payment === null) {
+            return;
+        }
+
+        Db::transaction(static function () use ($payment, $id, $amount, $note): void {
+            Db::update('payments', [
+                'amount_reported'     => $payment['amount_reported'] ?? $payment['amount_paid'],
+                'amount_paid'         => $amount,
+                'amount_note'         => $note !== '' ? mb_substr($note, 0, 500) : null,
+                'amount_corrected_at' => now(),
+                'updated_at'          => now(),
+            ], 'id = :target_id', ['target_id' => $id]);
+
+            $receipt = ReceiptRepo::findForPayment($id);
+            if ($receipt !== null) {
+                Db::update('receipts', ['amount' => $amount], 'id = :target_id', ['target_id' => (int) $receipt['id']]);
+                ReceiptRepo::invalidatePdfCache((int) $receipt['id']);
+            }
+        });
+
+        Audit::log('payment.amount_corrected', [
+            'actor_type'  => 'admin',
+            'actor_id'    => $actor,
+            'target_type' => 'payment',
+            'target_id'   => $id,
+            'meta'        => ['from' => (float) $payment['amount_paid'], 'to' => $amount, 'currency' => $payment['currency'], 'note' => $note],
+        ]);
     }
 
     public static function reject(int $id, string $reason, string $actor = 'admin'): void

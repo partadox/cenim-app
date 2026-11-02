@@ -35,6 +35,7 @@ $menu = [
         ['key' => 'invoices',     'label' => 'Invoices',     'icon' => 'fa-file-invoice',        'url' => admin_url('invoices.php')],
         ['key' => 'receipts',     'label' => 'Receipts',     'icon' => 'fa-receipt',             'url' => admin_url('receipts.php')],
         ['key' => 'certificates', 'label' => 'Certificates', 'icon' => 'fa-certificate',         'url' => admin_url('certificates.php')],
+        ['key' => 'letters',      'label' => 'Letter Generate', 'icon' => 'fa-envelope-open-text', 'url' => admin_url('letters.php')],
     ],
     'Website' => [
         ['key' => 'content',   'label' => 'Landing Content', 'icon' => 'fa-newspaper',    'url' => admin_url('content.php')],

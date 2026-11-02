@@ -2,6 +2,8 @@
 /**
  * Detail satu pembayaran + aksi confirm / reject.
  * Konfirmasi menjadikan invoice lunas dan menerbitkan receipt.
+ * action=correct_amount: admin membetulkan nominal (underpaid/overpaid yang
+ * sudah diklarifikasi dengan author); nominal asli author tetap tercatat.
  */
 
 declare(strict_types=1);
@@ -37,6 +39,26 @@ if (is_post()) {
         'amount'        => fmt_money((float) $payment['amount_paid'], (string) $payment['currency']),
         'loginUrl'      => full_url(author_url('login.php')),
     ];
+
+    if ($action === 'correct_amount') {
+        // "6.000.000" / "6000000" (IDR) atau "350.50" / "1,350.50" (USD).
+        $raw    = trim((string) input('amount', ''));
+        $currency = (string) $payment['currency'];
+        $clean  = $currency === 'IDR' ? preg_replace('/[^0-9]/', '', $raw) : str_replace([',', ' '], '', $raw);
+        if ($clean === '' || !is_numeric($clean) || (float) $clean < 0) {
+            Session::flash('error', 'Please enter a valid amount.');
+            Response::redirect(admin_url('payment-view.php?id=' . $id));
+        }
+        $amount = round((float) $clean, $currency === 'IDR' ? 0 : 2);
+        $note   = trim((string) input('amount_note', ''));
+
+        PaymentRepo::correctAmount($id, $amount, $note);
+
+        Session::flash('success', 'Amount set to ' . fmt_money($amount, $currency)
+            . ' (reported by the author: ' . fmt_money((float) ($payment['amount_reported'] ?? $payment['amount_paid']), $currency) . ').'
+            . (ReceiptRepo::findForPayment($id) !== null ? ' The receipt was updated.' : ''));
+        Response::redirect(admin_url('payment-view.php?id=' . $id));
+    }
 
     if ($action === 'confirm') {
         if ((string) $payment['status'] === PaymentRepo::STATUS_CONFIRMED) {

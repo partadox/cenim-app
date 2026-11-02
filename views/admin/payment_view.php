@@ -65,6 +65,16 @@ $isImage   = $proof !== null && str_starts_with((string) $proof['mime'], 'image/
                     <div class="text-muted" style="font-size:12px">
                         <?= e(ucfirst(Money::words((float) $payment['amount_paid'], $currency))) ?>
                     </div>
+                    <?php if (($payment['amount_reported'] ?? null) !== null): ?>
+                        <div class="mt-2 pt-2 border-top" style="font-size:12px">
+                            <i class="fa-solid fa-user-pen me-1" style="color:var(--cn-navy)"></i>
+                            <b>Corrected by the committee</b> on <?= e(fmt_dt((string) $payment['amount_corrected_at'])) ?>.
+                            The author reported <b><?= e(fmt_money((float) $payment['amount_reported'], $currency)) ?></b>.
+                            <?php if (($payment['amount_note'] ?? '') !== ''): ?>
+                                <div class="text-muted mt-1"><?= nl2br(e((string) $payment['amount_note'])) ?></div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
 
                 <?php if (abs($difference) > 0.009): ?>
@@ -221,6 +231,32 @@ $isImage   = $proof !== null && str_starts_with((string) $proof['mime'], 'image/
                 <h2>Decision</h2>
             </div>
             <div class="cn-card-body">
+                <?php $invoiceTotal = (float) $payment['invoice_total']; ?>
+                <form method="post" class="mb-3 pb-3 border-bottom" id="amountForm"
+                      onsubmit="return confirm('Change the payment amount?' + <?= e(json_encode($receipt !== null ? ' The receipt is updated too.' : '')) ?>);">
+                    <?= Csrf::field() ?>
+                    <input type="hidden" name="action" value="correct_amount">
+                    <label class="form-label mb-1" for="amount" style="font-size:12.5px">
+                        Correct the amount <span class="text-muted">(after checking with the author or the bank statement)</span>
+                    </label>
+                    <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text"><?= e($currency) ?></span>
+                        <input type="text" inputmode="decimal" class="form-control" id="amount" name="amount" required
+                               value="<?= e($currency === 'IDR' ? number_format((float) $payment['amount_paid'], 0, ',', '.') : number_format((float) $payment['amount_paid'], 2, '.', ',')) ?>">
+                        <button type="button" class="btn btn-outline-secondary" id="amountInvoice"
+                                data-value="<?= e($currency === 'IDR' ? number_format($invoiceTotal, 0, ',', '.') : number_format($invoiceTotal, 2, '.', ',')) ?>"
+                                title="Use the invoice total">= invoice</button>
+                    </div>
+                    <input type="text" class="form-control form-control-sm mb-2" name="amount_note" maxlength="500"
+                           placeholder="Reason, e.g. Confirmed by email: fee of a committee member excluded">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary w-100">
+                        <i class="fa-solid fa-pen-to-square me-1"></i>Save amount
+                    </button>
+                    <p class="text-muted mt-2 mb-0" style="font-size:11.5px">
+                        The amount the author reported is kept for the record. The receipt shows the corrected amount.
+                    </p>
+                </form>
+
                 <?php if ($confirmed): ?>
                     <div class="alert alert-success py-2 px-3" style="font-size:12.5px">
                         <i class="fa-solid fa-circle-check me-1"></i>
@@ -256,3 +292,9 @@ $isImage   = $proof !== null && str_starts_with((string) $proof['mime'], 'image/
         </div>
     </div>
 </div>
+
+<script>
+document.getElementById('amountInvoice')?.addEventListener('click', function () {
+    document.getElementById('amount').value = this.dataset.value;
+});
+</script>

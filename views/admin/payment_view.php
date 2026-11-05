@@ -15,6 +15,7 @@ $status    = (string) $payment['status'];
 $confirmed = $status === PaymentRepo::STATUS_CONFIRMED;
 $currency  = (string) $payment['currency'];
 $isImage   = $proof !== null && str_starts_with((string) $proof['mime'], 'image/');
+$waived    = (string) $payment['method'] === 'waived';
 ?>
 
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
@@ -232,6 +233,25 @@ $isImage   = $proof !== null && str_starts_with((string) $proof['mime'], 'image/
             </div>
             <div class="cn-card-body">
                 <?php $invoiceTotal = (float) $payment['invoice_total']; ?>
+                <?php if ($waived): ?>
+                    <div class="alert alert-success py-2 px-3" style="font-size:12.5px">
+                        <i class="fa-solid fa-hand-holding-heart me-1"></i>
+                        <b>Registration fee waived</b> &mdash; recorded as paid with 0 income.
+                        <?php if (($payment['note'] ?? '') !== ''): ?><div class="mt-1"><?= e((string) $payment['note']) ?></div><?php endif; ?>
+                    </div>
+                    <form method="post"
+                          onsubmit="return confirm('Cancel the waiver? The 0 receipt is removed and the invoice becomes unpaid again, so the author has to pay it.');">
+                        <?= Csrf::field() ?>
+                        <input type="hidden" name="action" value="cancel_waiver">
+                        <button type="submit" class="btn btn-outline-danger w-100">
+                            <i class="fa-solid fa-ban me-1"></i>Cancel waiver
+                        </button>
+                        <p class="text-muted mt-2 mb-0" style="font-size:11.5px">
+                            Invoice <?= e((string) $payment['invoice_number']) ?> goes back to unpaid (<?= e(fmt_money($invoiceTotal, $currency)) ?>).
+                            No email is sent; tell the author to pay or upload the proof in the Portal.
+                        </p>
+                    </form>
+                <?php else: ?>
                 <form method="post" class="mb-3 pb-3 border-bottom" id="amountForm"
                       onsubmit="return confirm('Change the payment amount?' + <?= e(json_encode($receipt !== null ? ' The receipt is updated too.' : '')) ?>);">
                     <?= Csrf::field() ?>
@@ -257,7 +277,10 @@ $isImage   = $proof !== null && str_starts_with((string) $proof['mime'], 'image/
                     </p>
                 </form>
 
-                <?php if ($confirmed): ?>
+                <?php endif; ?>
+
+                <?php if ($waived): ?>
+                <?php elseif ($confirmed): ?>
                     <div class="alert alert-success py-2 px-3" style="font-size:12.5px">
                         <i class="fa-solid fa-circle-check me-1"></i>
                         Confirmed on <?= e(fmt_dt($payment['confirmed_at'] ?? null)) ?>. The invoice is marked paid and

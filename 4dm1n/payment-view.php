@@ -16,6 +16,7 @@ use Cenim\Core\Response;
 use Cenim\Core\Session;
 use Cenim\Core\View;
 use Cenim\Domain\FileRepo;
+use Cenim\Domain\InvoiceRepo;
 use Cenim\Domain\PaymentRepo;
 use Cenim\Domain\ReceiptRepo;
 
@@ -39,6 +40,16 @@ if (is_post()) {
         'amount'        => fmt_money((float) $payment['amount_paid'], (string) $payment['currency']),
         'loginUrl'      => full_url(author_url('login.php')),
     ];
+
+    if ($action === 'cancel_waiver') {
+        $error = InvoiceRepo::cancelWaiver((int) $payment['invoice_id']);
+        if ($error !== null) {
+            Session::flash('error', $error);
+            Response::redirect(admin_url('payment-view.php?id=' . $id));
+        }
+        Session::flash('success', 'Waiver cancelled. Invoice ' . $payment['invoice_number'] . ' is unpaid again and its 0 receipt was removed. The author can now pay it.');
+        Response::redirect(admin_url('registration-view.php?id=' . (int) $payment['registration_id']));
+    }
 
     if ($action === 'correct_amount') {
         // "6.000.000" / "6000000" (IDR) atau "350.50" / "1,350.50" (USD).

@@ -306,6 +306,55 @@ final class InvoiceRepo
         return ['invoice' => self::find((int) $invoice['id']), 'receipt' => $confirmed['receipt'], 'error' => $confirmed['error']];
     }
 
+    /**
+     * Batalkan waive: pembayaran "Fee waived" (0) dan receipt-nya dihapus,
+     * invoice kembali unpaid sehingga author membayar seperti biasa.
+     * Registrasi tetap verified. Kembalikan pesan error atau null.
+     */
+    public static function cancelWaiver(int $invoiceId, string $actor = 'admin'): ?string
+    {
+        $invoice = self::find($invoiceId);
+        if ($invoice === null || !self::isWaived($invoice)) {
+            return 'This invoice is not waived.';
+        }
+
+        $payment = PaymentRepo::findForInvoice($invoiceId);
+        $receipt = ReceiptRepo::findForInvoice($invoiceId);
+
+        Db::transaction(static function () use ($invoiceId, $payment, $receipt): void {
+            if ($receipt !== null) {
+                Db::delete('receipts', 'id = ?', [(int) $receipt['id']]);
+            }
+            if ($payment !== null && (string) $payment['method'] === 'waived') {
+                Db::delete('payments', 'id = ?', [(int) $payment['id']]);
+            }
+            Db::update('invoices', [
+                'status'      => self::STATUS_UNPAID,
+                'waived_at'   => null,
+                'waived_note' => null,
+                'pdf_cache'   => null,
+                'updated_at'  => now(),
+            ], 'id = :target_id', ['target_id' => $invoiceId]);
+        });
+
+        // Berkas PDF cache yang sudah tidak berlaku.
+        foreach ([$invoice['pdf_cache'] ?? null, $receipt['pdf_cache'] ?? null] as $cache) {
+            if (is_string($cache) && $cache !== '' && is_file(storage_path($cache))) {
+                @unlink(storage_path($cache));
+            }
+        }
+
+        Audit::log('invoice.waiver_cancelled', [
+            'actor_type'  => 'admin',
+            'actor_id'    => $actor,
+            'target_type' => 'invoice',
+            'target_id'   => $invoiceId,
+            'meta'        => ['number' => $invoice['number'], 'receipt' => $receipt['number'] ?? null, 'note' => $invoice['waived_note']],
+        ]);
+
+        return null;
+    }
+
     public static function isWaived(?array $invoice): bool
     {
         return ($invoice['waived_at'] ?? null) !== null;

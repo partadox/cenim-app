@@ -68,6 +68,26 @@ final class RegistrationRepo
         );
     }
 
+    /**
+     * Paper accepted yang belum punya registrasi sama sekali (belum membuka
+     * form), beserta status confirmation form-nya. Untuk daftar "Not started".
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public static function notStarted(int $editionId): array
+    {
+        return Db::all(
+            "SELECT a.id, a.paper_id, a.paper_title, a.first_author_name, a.email, a.country,
+                    c.presentation_mode, c.id AS confirmation_id
+             FROM authors a
+             LEFT JOIN paper_confirmations c ON c.author_id = a.id
+             WHERE a.edition_id = ? AND a.paper_status = 'accepted'
+               AND NOT EXISTS (SELECT 1 FROM registrations r WHERE r.author_id = a.id)
+             ORDER BY a.paper_id",
+            [$editionId]
+        );
+    }
+
     /** Buat baris draft bila author belum punya registrasi. */
     public static function ensureDraft(int $editionId, array $author): array
     {

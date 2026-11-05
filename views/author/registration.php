@@ -19,6 +19,10 @@
  * @var array|null $ieeeProof
  * @var int    $includedPages
  * @var array|null $confirmation  confirmation form (form 0) paper ini
+ * @var bool   $adminMode     dibuka panitia (4dm1n/registration-edit.php)
+ * @var string $backUrl
+ * @var string|null $lockReason  admin: alasan form tidak bisa diubah
+ * @var array|null  $invoice
  */
 
 use Cenim\Core\Csrf;
@@ -28,6 +32,7 @@ use Cenim\Domain\FileRepo;
 use Cenim\Domain\RegistrationRepo;
 
 $status   = (string) $registration['status'];
+$adminMode = $adminMode ?? false;
 $disabled = $editable && $isOpen ? '' : 'disabled';
 $percent  = rtrim(rtrim(number_format((float) $feeData['percent'], 2, '.', ''), '0'), '.');
 $currency = (string) $feeData['currency'];
@@ -99,7 +104,7 @@ $attendeeRow = static function (string $i, array $row) use ($paperAuthors, $disa
 ?>
 
 <div class="d-flex align-items-center gap-2 mb-3">
-    <a href="<?= e(author_url('index.php')) ?>" class="btn btn-sm btn-outline-secondary">
+    <a href="<?= e($backUrl ?? author_url('index.php')) ?>" class="btn btn-sm btn-outline-secondary">
         <i class="fa-solid fa-arrow-left me-1"></i>Back
     </a>
     <span class="cn-badge <?= e(RegistrationRepo::statusBadgeClass($status)) ?>">
@@ -115,7 +120,18 @@ $attendeeRow = static function (string $i, array $row) use ($paperAuthors, $disa
     </div>
 <?php endif; ?>
 
-<?php if (!$isOpen): ?>
+<?php if ($adminMode): ?>
+    <div class="alert alert-warning" style="font-size:13px">
+        <i class="fa-solid fa-user-shield me-1"></i>
+        You are filling in this registration <b>as the secretariat</b>. The registration period and the required proofs
+        and shirt sizes are not checked, and no email is sent to the author.
+        <?php if ($lockReason !== null): ?>
+            <div class="mt-1"><b><?= e($lockReason) ?></b></div>
+        <?php elseif (($invoice ?? null) !== null): ?>
+            <div class="mt-1">Invoice <b><?= e((string) $invoice['number']) ?></b> is already issued: if the total changes, it is voided and a new invoice is emailed to the author.</div>
+        <?php endif; ?>
+    </div>
+<?php elseif (!$isOpen): ?>
     <div class="alert alert-warning" style="font-size:13px">
         <i class="fa-solid fa-lock me-1"></i>
         Registration is currently closed. Please contact the secretariat if you believe this is a mistake.
@@ -137,7 +153,7 @@ $attendeeRow = static function (string $i, array $row) use ($paperAuthors, $disa
         <?php if ((string) $confirmation['presentation_mode'] === 'offline' && (int) $confirmation['attendees'] > 1): ?>
             Add the <?= (int) $confirmation['attendees'] - 1 ?> non-presenter<?= (int) $confirmation['attendees'] > 2 ? 's' : '' ?> in step 4.
         <?php endif; ?>
-        <a href="<?= e(author_url('confirmation.php')) ?>" target="_blank" rel="noopener">View the confirmation<i class="fa-solid fa-arrow-up-right-from-square ms-1"></i></a>
+        <a href="<?= e($adminMode ? admin_url('confirmation-edit.php?id=' . (int) $author['id']) : author_url('confirmation.php')) ?>" target="_blank" rel="noopener">View the confirmation<i class="fa-solid fa-arrow-up-right-from-square ms-1"></i></a>
     </div>
 <?php endif; ?>
 
@@ -498,7 +514,24 @@ $attendeeRow = static function (string $i, array $row) use ($paperAuthors, $disa
                         category does not match the proof.
                     </p>
 
-                    <?php if ($editable && $isOpen): ?>
+                    <?php if ($adminMode && $editable): ?>
+                        <?php $canSubmit = in_array($status, [RegistrationRepo::STATUS_DRAFT, RegistrationRepo::STATUS_REJECTED], true); ?>
+                        <div class="d-grid gap-2">
+                            <?php if ($canSubmit): ?>
+                                <button type="submit" name="action" value="submit" class="btn btn-navy">
+                                    <i class="fa-solid fa-paper-plane me-1"></i>Save &amp; submit
+                                </button>
+                            <?php endif; ?>
+                            <button type="submit" name="action" value="save" class="btn <?= $canSubmit ? 'btn-outline-secondary' : 'btn-navy' ?>">
+                                <i class="fa-regular fa-floppy-disk me-1"></i><?= $canSubmit ? 'Save as draft' : 'Save changes' ?>
+                            </button>
+                        </div>
+                        <p class="text-muted mt-2 mb-0" style="font-size:11.5px">
+                            <?= $canSubmit
+                                ? 'Submit puts the registration in the review list; verify it afterwards in Review registration.'
+                                : 'The status stays ' . e(ucfirst($status)) . '.' ?>
+                        </p>
+                    <?php elseif ($editable && $isOpen): ?>
                         <div class="d-grid gap-2">
                             <button type="submit" name="action" value="submit" class="btn btn-navy">
                                 <i class="fa-solid fa-paper-plane me-1"></i>Submit registration

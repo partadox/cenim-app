@@ -21,6 +21,7 @@ View::render('admin/payments', [
     'active'   => 'payments',
     'edition'  => $edition,
     'counts'   => $counts,
+    'unpaid'   => PaymentRepo::unpaidInvoices($editionId),
     'totals'   => PaymentRepo::confirmedTotals($editionId),
     'statuses' => PaymentRepo::STATUSES,
     'assets'   => ['datatables'],

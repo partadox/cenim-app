@@ -41,8 +41,12 @@ $isParticipantReg = str_starts_with((string) $registration['paper_id'], Cenim\Do
     <span class="cn-badge <?= e(RegistrationRepo::statusBadgeClass($status)) ?>">
         <?= e(ucfirst($status)) ?>
     </span>
-    <a href="<?= e(admin_url('author-edit.php?id=' . (int) $registration['author_id'])) ?>"
+    <a href="<?= e(admin_url('registration-edit.php?id=' . (int) $registration['id'])) ?>"
        class="btn btn-sm btn-outline-secondary ms-auto">
+        <i class="fa-solid fa-pen-to-square me-1"></i>Edit registration form
+    </a>
+    <a href="<?= e(admin_url('author-edit.php?id=' . (int) $registration['author_id'])) ?>"
+       class="btn btn-sm btn-outline-secondary">
         <i class="fa-solid fa-pen me-1"></i>Edit author data
     </a>
 </div>
@@ -443,6 +447,12 @@ $isParticipantReg = str_starts_with((string) $registration['paper_id'], Cenim\Do
                        href="<?= e(admin_url('invoice-pdf.php?id=' . (int) $invoice['id'])) ?>">
                         <i class="fa-solid fa-file-pdf me-1"></i>Open invoice PDF
                     </a>
+                    <?php if ((string) $invoice['status'] === InvoiceRepo::STATUS_UNPAID): ?>
+                        <a class="btn btn-sm btn-outline-success" href="<?= e(admin_url('payment-record.php?invoice=' . (int) $invoice['id'])) ?>"
+                           title="The author paid but did not upload the proof">
+                            <i class="fa-solid fa-check me-1"></i>Mark as paid
+                        </a>
+                    <?php endif; ?>
                 </div>
             </div>
         <?php elseif ($status === RegistrationRepo::STATUS_VERIFIED): ?>

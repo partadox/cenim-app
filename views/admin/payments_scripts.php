@@ -56,9 +56,35 @@
         if (select) { select.addEventListener('change', function () { table.ajax.reload(); }); }
     });
 
+    // Invoice yang belum dibayar (tanpa bukti bayar aktif).
+    var unpaid = new DataTable('#unpaidTable', {
+        pageLength: 25,
+        order: [[5, 'asc']],
+        columnDefs: [{ targets: [0, -1], orderable: false, searchable: false }],
+        language: {
+            search: '',
+            searchPlaceholder: 'Search invoice, paper, name…',
+            emptyTable: 'Every issued invoice has a payment.',
+            zeroRecords: 'No invoice matches your search.',
+            info: 'Showing _START_ to _END_ of _TOTAL_ invoices',
+            infoEmpty: 'No invoices',
+            infoFiltered: '(filtered from _MAX_ total)'
+        }
+    });
+    unpaid.on('draw', function () {
+        var start = unpaid.page.info().start;
+        unpaid.column(0, { search: 'applied', order: 'applied', page: 'current' }).nodes().each(function (cell, i) {
+            cell.textContent = start + i + 1;
+        });
+    });
+
     document.querySelectorAll('[data-status-filter]').forEach(function (link) {
         link.addEventListener('click', function (event) {
             event.preventDefault();
+            if (this.dataset.statusFilter === 'unpaid') {
+                document.getElementById('unpaidList').scrollIntoView({ behavior: 'smooth' });
+                return;
+            }
             filters.f_status.value = this.dataset.statusFilter;
             table.ajax.reload();
         });

@@ -13,7 +13,8 @@ use Cenim\Domain\RegistrationRepo;
 $edition   = current_edition();
 $editionId = (int) ($edition['id'] ?? 0);
 
-$counts = RegistrationRepo::countsByStatus($editionId);
+$counts     = RegistrationRepo::countsByStatus($editionId);
+$notStarted = RegistrationRepo::notStarted($editionId);
 
 View::render('admin/registrations', [
     'title'    => 'Registrations',
@@ -21,6 +22,7 @@ View::render('admin/registrations', [
     'active'   => 'registrations',
     'edition'  => $edition,
     'counts'   => $counts,
+    'notStarted' => $notStarted,
     'verifiedTotals' => RegistrationRepo::totalsByCurrency($editionId, RegistrationRepo::STATUS_VERIFIED),
     'statuses' => RegistrationRepo::STATUSES,
     'assets'   => ['datatables'],

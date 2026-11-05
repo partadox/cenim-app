@@ -3,11 +3,13 @@
  * @var array<string,int>   $counts
  * @var array<string,float> $verifiedTotals
  * @var array<int,string>   $statuses
+ * @var array<int,array<string,mixed>> $notStarted  paper accepted tanpa registrasi
  */
 
 use Cenim\Domain\RegistrationRepo;
 
 $cards = [
+    ['label' => 'Not started',      'value' => count($notStarted),                          'icon' => 'fa-circle-pause',   'filter' => 'not_started'],
     ['label' => 'Draft',            'value' => $counts[RegistrationRepo::STATUS_DRAFT],     'icon' => 'fa-pen-ruler',      'filter' => 'draft'],
     ['label' => 'Awaiting review',  'value' => $counts[RegistrationRepo::STATUS_SUBMITTED], 'icon' => 'fa-hourglass-half', 'filter' => 'submitted'],
     ['label' => 'Verified',         'value' => $counts[RegistrationRepo::STATUS_VERIFIED],  'icon' => 'fa-circle-check',   'filter' => 'verified'],
@@ -26,9 +28,9 @@ $cards = [
     </div>
 </div>
 
-<div class="row g-3 mb-3">
+<div class="row g-3 mb-3 row-cols-2 row-cols-lg-5">
     <?php foreach ($cards as $card): ?>
-        <div class="col-6 col-lg-3">
+        <div class="col">
             <a class="text-decoration-none" href="#" data-status-filter="<?= e($card['filter']) ?>">
                 <div class="cn-card h-100">
                     <div class="cn-card-body cn-stat">
@@ -102,5 +104,43 @@ $cards = [
                 </thead>
             </table>
         </div>
+    </div>
+</div>
+
+<div class="cn-card mt-3" id="notStarted">
+    <div class="cn-card-head flex-wrap">
+        <i class="fa-solid fa-circle-pause text-muted"></i>
+        <h2>Not started yet (<?= count($notStarted) ?>)</h2>
+        <span class="text-muted" style="font-size:12px">Accepted papers that have not opened the registration form. Fill it in for the author if needed.</span>
+    </div>
+    <div class="cn-card-body">
+        <table id="notStartedTable" class="table table-sm align-middle mb-0" style="width:100%;font-size:12.5px">
+            <thead class="table-light">
+                <tr><th class="text-center">No</th><th>Paper ID</th><th>First author</th><th>Title</th><th>Confirmation</th><th class="text-end">Action</th></tr>
+            </thead>
+            <tbody>
+                <?php foreach ($notStarted as $i => $paper): ?>
+                    <tr>
+                        <td class="text-center text-muted"><?= $i + 1 ?></td>
+                        <td><code><?= e((string) $paper['paper_id']) ?></code></td>
+                        <td><?= e((string) $paper['first_author_name']) ?>
+                            <div class="text-muted" style="font-size:11.5px"><?= e((string) $paper['email']) ?></div></td>
+                        <td style="max-width:360px"><?= e((string) $paper['paper_title']) ?></td>
+                        <td>
+                            <?php if ($paper['confirmation_id'] === null): ?>
+                                <span class="cn-badge cn-badge-draft">not confirmed</span>
+                            <?php else: ?>
+                                <span class="cn-badge cn-badge-verified"><?= e(ucfirst((string) $paper['presentation_mode'])) ?></span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-secondary" href="<?= e(admin_url('registration-edit.php?author=' . (int) $paper['id'])) ?>">
+                                <i class="fa-solid fa-pen-to-square me-1"></i>Fill in
+                            </a>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
     </div>
 </div>

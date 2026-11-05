@@ -241,6 +241,29 @@ final class PaymentRepo
         ]);
     }
 
+    /**
+     * Invoice belum lunas yang belum punya bukti bayar aktif (tidak ada
+     * pembayaran, atau pembayaran dikembalikan ke author). Invoice void tidak ikut.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public static function unpaidInvoices(int $editionId): array
+    {
+        return Db::all(
+            "SELECT i.id, i.number, i.total, i.currency, i.issued_at, i.due_date,
+                    r.id AS registration_id, a.paper_id, a.first_author_name, a.email,
+                    p.id AS payment_id, p.status AS payment_status
+             FROM invoices i
+             JOIN registrations r ON r.id = i.registration_id
+             JOIN authors a ON a.id = r.author_id
+             LEFT JOIN payments p ON p.invoice_id = i.id
+             WHERE i.edition_id = ? AND i.status = ?
+               AND (p.id IS NULL OR p.status = ?)
+             ORDER BY i.issued_at",
+            [$editionId, InvoiceRepo::STATUS_UNPAID, self::STATUS_REJECTED]
+        );
+    }
+
     /** @return array<string,int> */
     public static function countsByStatus(int $editionId): array
     {

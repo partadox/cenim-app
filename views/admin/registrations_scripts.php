@@ -95,10 +95,36 @@
         });
     });
 
+    // Daftar paper yang belum membuka form registrasi.
+    var notStarted = new DataTable('#notStartedTable', {
+        pageLength: 25,
+        order: [[1, 'asc']],
+        columnDefs: [{ targets: [0, -1], orderable: false, searchable: false }],
+        language: {
+            search: '',
+            searchPlaceholder: 'Search paper ID, name, title…',
+            emptyTable: 'Every accepted paper has started the registration.',
+            zeroRecords: 'No paper matches your search.',
+            info: 'Showing _START_ to _END_ of _TOTAL_ papers',
+            infoEmpty: 'No papers',
+            infoFiltered: '(filtered from _MAX_ total)'
+        }
+    });
+    notStarted.on('draw', function () {
+        var start = notStarted.page.info().start;
+        notStarted.column(0, { search: 'applied', order: 'applied', page: 'current' }).nodes().each(function (cell, i) {
+            cell.textContent = start + i + 1;
+        });
+    });
+
     // Kartu ringkasan berfungsi sebagai filter cepat.
     document.querySelectorAll('[data-status-filter]').forEach(function (link) {
         link.addEventListener('click', function (event) {
             event.preventDefault();
+            if (this.dataset.statusFilter === 'not_started') {
+                document.getElementById('notStarted').scrollIntoView({ behavior: 'smooth' });
+                return;
+            }
             filters.f_status.value = this.dataset.statusFilter;
             table.ajax.reload();
         });

@@ -60,6 +60,8 @@ $guestRow = static function (string $i, array $row) use ($disabled, $shirtOn, $s
     <span class="cn-badge <?= e(RegistrationRepo::statusBadgeClass($status)) ?>"><?= e(ucfirst($status)) ?></span>
 </div>
 
+<?= Cenim\Core\View::partial('author/_form_note', ['formKey' => Cenim\Domain\FormRepo::FORM_REGISTRATION]) ?>
+
 <?php if ($status === RegistrationRepo::STATUS_REJECTED && ($registration['reject_reason'] ?? '') !== ''): ?>
     <div class="alert alert-danger" style="font-size:13px">
         <b><i class="fa-solid fa-circle-exclamation me-1"></i>The committee asked for a correction</b>

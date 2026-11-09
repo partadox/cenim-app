@@ -2,6 +2,7 @@
 /**
  * @var string $formKey
  * @var array<int,array<string,mixed>> $fields
+ * @var string $note  catatan HTML di atas form author
  */
 
 use Cenim\Core\Csrf;
@@ -33,6 +34,23 @@ $forms = [
         the registration form is the one that renders them today.
     </div>
 <?php endif; ?>
+
+<form method="post" class="cn-card mb-3" id="noteForm">
+    <?= Csrf::field() ?>
+    <input type="hidden" name="action" value="note">
+    <div class="cn-card-head flex-wrap">
+        <i class="fa-solid fa-note-sticky text-muted"></i>
+        <h2>Note at the top of the form</h2>
+        <span class="text-muted" style="font-size:12px">Shown to authors above the <?= e($forms[$formKey]) ?>. Leave empty to hide it.</span>
+    </div>
+    <div class="cn-card-body">
+        <textarea id="note" name="note" rows="6" class="form-control"><?= e($note) ?></textarea>
+        <div class="d-flex align-items-center gap-2 mt-2">
+            <button type="submit" class="btn btn-sm btn-navy"><i class="fa-solid fa-floppy-disk me-1"></i>Save note</button>
+            <span class="text-muted" style="font-size:11.5px">Write in simple English for the authors.</span>
+        </div>
+    </div>
+</form>
 
 <div class="cn-card mb-3">
     <div class="cn-card-head">
@@ -173,3 +191,24 @@ $forms = [
         </form>
     </div>
 </div>
+
+<script src="<?= e(cfg('cdn.tinymce_js')) ?>"></script>
+<script>
+(function () {
+    if (typeof tinymce === 'undefined') { return; }
+    tinymce.init({
+        selector: '#note',
+        promotion: false,
+        branding: false,
+        menubar: false,
+        plugins: 'link lists autoresize code',
+        toolbar: 'undo redo | bold italic underline | bullist numlist | link | removeformat | code',
+        min_height: 200,
+        max_height: 500,
+        convert_urls: false,
+        entity_encoding: 'raw',
+        content_style: 'body{font-family:system-ui,sans-serif;font-size:14px;padding:10px}'
+    });
+    document.getElementById('noteForm').addEventListener('submit', function () { tinymce.triggerSave(); });
+})();
+</script>

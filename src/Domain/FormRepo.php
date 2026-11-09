@@ -22,6 +22,17 @@ final class FormRepo
 
     public const TYPES = ['text', 'textarea', 'number', 'date', 'select', 'radio', 'checkbox'];
 
+    /** Catatan HTML di atas form author (Form Builder), per edisi & form. */
+    public static function note(int $editionId, string $formKey): string
+    {
+        return $editionId > 0 ? SettingRepo::getString($editionId, 'form_note_' . $formKey) : '';
+    }
+
+    public static function setNote(int $editionId, string $formKey, string $html): void
+    {
+        SettingRepo::set($editionId, 'form_note_' . $formKey, trim($html));
+    }
+
     /** @return array<int,array<string,mixed>> */
     public static function fields(int $editionId, string $formKey): array
     {

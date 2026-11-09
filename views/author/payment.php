@@ -40,6 +40,8 @@ $cls = static fn (string $field): string => isset($errors[$field]) ? ' is-invali
     </a>
 </div>
 
+<?= Cenim\Core\View::partial('author/_form_note', ['formKey' => Cenim\Domain\FormRepo::FORM_PAYMENT]) ?>
+
 <?php if ($isPaid): ?>
     <div class="alert alert-success" style="font-size:13px">
         <i class="fa-solid fa-circle-check me-1"></i>

@@ -2,6 +2,7 @@
 /**
  * Form builder: field tambahan pada form registrasi (dan pembayaran) author.
  * Jawabannya tersimpan di registrations.extra_json dan tampil di halaman review.
+ * action=note: catatan WYSIWYG yang tampil di atas form author (FormRepo::note).
  */
 
 declare(strict_types=1);
@@ -27,6 +28,13 @@ if (is_post()) {
 
     $action = (string) input('action', '');
     $id     = input_int('id');
+
+    if ($action === 'note') {
+        FormRepo::setNote($editionId, $formKey, is_string($_POST['note'] ?? null) ? $_POST['note'] : '');
+        Audit::log('form.note_saved', ['meta' => ['form' => $formKey]]);
+        Session::flash('success', 'Note saved. It is shown at the top of the author form.');
+        Response::redirect(admin_url('forms.php?form=' . $formKey));
+    }
 
     $data = [
         'label'        => mb_substr(trim((string) input('label', '')), 0, 190),
@@ -106,6 +114,7 @@ View::render('admin/forms', [
     'active'   => 'forms',
     'edition'  => $edition,
     'formKey'  => $formKey,
+    'note'     => FormRepo::note($editionId, $formKey),
     'fields'   => Db::all(
         'SELECT * FROM form_fields WHERE edition_id = ? AND form_key = ? ORDER BY sort, id',
         [$editionId, $formKey]

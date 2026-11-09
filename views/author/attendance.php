@@ -35,6 +35,8 @@ $err = static fn (string $field): string => isset($errors[$field])
     <?php endif; ?>
 </div>
 
+<?= Cenim\Core\View::partial('author/_form_note', ['formKey' => Cenim\Domain\FormRepo::FORM_ATTENDANCE]) ?>
+
 <?php if (!$isOpen): ?>
     <div class="alert alert-warning" style="font-size:13px">
         <i class="fa-solid fa-lock me-1"></i>The video presentation form is closed. Please contact the secretariat if something has changed.

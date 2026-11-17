@@ -240,10 +240,16 @@ final class ConfirmationRepo
                     a.total_pages, a.final_pages,
                     c.id AS confirmation_id, c.presentation_mode, c.attendees, c.pages, c.extra_pages,
                     c.extra_page_fee, c.currency, c.note, c.shirt_sizes_json, c.filled_by_name, c.submitted_at, c.updated_at,
-                    r.status AS registration_status
+                    r.status AS registration_status,
+                    -- Presenter: dipilih di registration form; kalau belum, penanda presenter di daftar author.
+                    COALESCE(pr.name, pf.name) AS presenter_name,
+                    COALESCE(pr.email, pf.email) AS presenter_email,
+                    CASE WHEN pr.id IS NOT NULL THEN 'registration' WHEN pf.id IS NOT NULL THEN 'author list' END AS presenter_source
              FROM authors a
              LEFT JOIN paper_confirmations c ON c.author_id = a.id
              LEFT JOIN registrations r ON r.author_id = a.id
+             LEFT JOIN paper_authors pr ON pr.id = r.presenter_id
+             LEFT JOIN paper_authors pf ON pf.id = (SELECT x.id FROM paper_authors x WHERE x.author_id = a.id AND x.is_presenter = 1 ORDER BY x.position LIMIT 1)
              WHERE a.edition_id = ? AND a.paper_status = 'accepted'
              ORDER BY a.paper_id",
             [$editionId]

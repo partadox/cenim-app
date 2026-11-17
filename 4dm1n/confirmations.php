@@ -58,6 +58,9 @@ if (input('export') !== null) {
             (string) ($row['paper_title'] ?? ''),
             (string) $row['first_author_name'],
             (string) $row['email'],
+            (string) ($row['presenter_name'] ?? ''),
+            (string) ($row['presenter_email'] ?? ''),
+            match ($row['presenter_source'] ?? null) { 'registration' => 'Registration form', 'author list' => 'Author list (not chosen in registration)', default => 'Not chosen yet' },
             (string) ($row['country'] ?? ''),
             $confirmed ? 'Yes' : 'No',
             $confirmed ? ucfirst((string) $row['presentation_mode']) : '',
@@ -79,7 +82,7 @@ if (input('export') !== null) {
     Xlsx::download(
         'confirmations-' . ($edition['slug'] ?? 'cenim') . ($filter !== '' ? '-' . $filter : '') . '-' . gmdate('Ymd') . '.xlsx',
         'Confirmations',
-        ['No', 'Paper ID', 'Paper title', 'First author', 'Email', 'Country', 'Confirmed', 'Presentation',
+        ['No', 'Paper ID', 'Paper title', 'First author', 'Email', 'Presenter', 'Presenter email', 'Presenter source', 'Country', 'Confirmed', 'Presentation',
          'People attending (offline)', 'Non-presenters', 'Pages (review)', 'Pages (final)', 'Extra pages',
          'Extra page fee', 'Currency', 'Shirt sizes (presenter first)', 'Note', 'Filled by', 'Confirmed at', 'Registration'],
         $lines

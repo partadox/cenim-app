@@ -83,7 +83,7 @@ $cards = [
         <div class="table-responsive">
             <table class="table table-sm align-middle mb-0" id="confirmTable" style="font-size:12.5px">
                 <thead class="table-light">
-                    <tr><th class="text-center">No</th><th>Paper</th><th>Presentation</th><th class="text-center">Pages</th><th>Extra page fee</th><th>Note</th><th>Registration</th><th></th></tr>
+                    <tr><th class="text-center">No</th><th>Paper</th><th>Presenter</th><th>Presentation</th><th class="text-center">Pages</th><th>Extra page fee</th><th>Note</th><th>Registration</th><th></th></tr>
                 </thead>
                 <tbody>
                     <?php foreach ($rows as $i => $row): ?>
@@ -100,6 +100,17 @@ $cards = [
                                 <a href="<?= e(admin_url('author-edit.php?id=' . (int) $row['author_id'])) ?>"><b><?= e((string) $row['paper_id']) ?></b></a>
                                 <div class="text-muted text-truncate" title="<?= e((string) $row['paper_title']) ?>"><?= e((string) $row['paper_title']) ?></div>
                                 <div class="text-muted" style="font-size:11.5px"><?= e((string) $row['first_author_name']) ?></div>
+                            </td>
+                            <td style="font-size:12px;max-width:200px" data-order="<?= e((string) ($row['presenter_name'] ?? '')) ?>">
+                                <?php if (($row['presenter_name'] ?? null) !== null): ?>
+                                    <b><?= e((string) $row['presenter_name']) ?></b>
+                                    <?php if (($row['presenter_email'] ?? '') !== ''): ?><div class="text-muted" style="font-size:11px"><?= e((string) $row['presenter_email']) ?></div><?php endif; ?>
+                                    <?php if ($row['presenter_source'] !== 'registration'): ?>
+                                        <div style="font-size:10.5px" class="text-warning">from the author list, not chosen in registration</div>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="text-muted">not chosen yet</span>
+                                <?php endif; ?>
                             </td>
                             <td data-order="<?= $modeOrder ?>">
                                 <?php if (!$confirmed): ?>
@@ -172,11 +183,13 @@ document.addEventListener('DOMContentLoaded', function () {
         lengthMenu: [25, 50, 100, { label: 'All', value: -1 }],
         columnDefs: [
             { targets: 0, orderable: false, searchable: false },
+            // jangan dianggap angka/tanggal (rata kanan): kolom Paper, Presenter, Note
+            { targets: [1, 2, 6], type: 'string', className: 'text-start' },
             { targets: -1, orderable: false, searchable: false }
         ],
         language: {
             search: '',
-            searchPlaceholder: 'Search paper ID, title, author, note…',
+            searchPlaceholder: 'Search paper ID, title, author, presenter, note…',
             emptyTable: 'No paper here.',
             zeroRecords: 'No paper matches your search.',
             info: 'Showing _START_ to _END_ of _TOTAL_ papers',

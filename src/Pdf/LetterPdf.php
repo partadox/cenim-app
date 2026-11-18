@@ -467,15 +467,24 @@ final class LetterPdf extends PdfBase
         $this->flow($runs, 'L', $x, $this->GetPageWidth() - $this->rMargin - $x, self::BODY_SIZE);
     }
 
-    /** Tabel sederhana: lebar kolom sama, teks per sel dibungkus, baris pertama <th> ditebalkan. */
+    /**
+     * Tabel: lebar kolom mengikuti editor (width di <col>/<td>, % atau px),
+     * isi sel tetap bergaya (tebal/miring) dan rata kiri/tengah/kanan.
+     * Garis hanya digambar bila tabel memang bergaris: border="0" atau
+     * border-style none/hidden di tabel atau semua sel = tanpa garis.
+     */
     private function table(DOMNode $table, int $indent): void
     {
+        if (!$table instanceof DOMElement) {
+            return;
+        }
+        $xp   = new \DOMXPath($table->ownerDocument);
         $rows = [];
-        foreach ((new \DOMXPath($table->ownerDocument))->query('.//tr', $table) as $tr) {
+        foreach ($xp->query('.//tr', $table) as $tr) {
             $cells = [];
             foreach ($tr->childNodes as $cell) {
                 if ($cell instanceof DOMElement && in_array(strtolower($cell->tagName), ['td', 'th'], true)) {
-                    $cells[] = ['text' => trim((string) preg_replace('/\s+/u', ' ', $cell->textContent)), 'head' => strtolower($cell->tagName) === 'th'];
+                    $cells[] = $cell;
                 }
             }
             if ($cells !== []) {
@@ -486,34 +495,118 @@ final class LetterPdf extends PdfBase
             return;
         }
 
-        $border = (string) ($table instanceof DOMElement ? $table->getAttribute('border') : '');
-        $lines  = $border !== '' && $border !== '0' || str_contains(strtolower($table instanceof DOMElement ? $table->getAttribute('style') : ''), 'border');
-        $cols   = max(array_map('count', $rows));
-        $width  = ($this->GetPageWidth() - $this->lMargin - $this->rMargin - $indent) / $cols;
-        $h      = self::BODY_LINE - 0.4;
-
-        foreach ($rows as $row) {
-            $max = 1;
-            foreach ($row as $cell) {
-                $this->SetFont($this->family, $cell['head'] ? 'B' : '', self::BODY_SIZE - 0.5);
-                $max = max($max, $this->wrappedLines($cell['text'], $width - 2));
-            }
-            if ($this->GetY() + $max * $h > $this->GetPageHeight() - $this->bMargin) {
-                $this->AddPage();
-            }
-            $y = $this->GetY();
-            $x = $this->lMargin + $indent;
-            foreach ($row as $i => $cell) {
-                $this->SetFont($this->family, $cell['head'] ? 'B' : '', self::BODY_SIZE - 0.5);
-                $this->SetXY($x + $i * $width, $y);
-                $this->MultiCell($width, $h, $cell['text'], 0, 'L');
-                if ($lines) {
-                    $this->SetDrawColor(180, 188, 204);
-                    $this->Rect($x + $i * $width, $y, $width, $max * $h);
+        // ── Garis ───────────────────────────────────────────────────────────
+        $hidden = static function (string $style): bool {
+            $style = strtolower($style);
+            return (bool) preg_match('/border(-style)?\s*:\s*(none|hidden)|border(-width)?\s*:\s*0(px|pt)?\s*(;|$)/', $style);
+        };
+        $attr   = trim($table->getAttribute('border'));
+        $lines  = !($attr === '0' || $hidden($table->getAttribute('style')));
+        if ($lines) {
+            $allHidden = true;
+            foreach ($rows as $row) {
+                foreach ($row as $cell) {
+                    if (!$hidden($cell->getAttribute('style'))) {
+                        $allHidden = false;
+                        break 2;
+                    }
                 }
             }
-            $this->SetY($y + $max * $h);
+            $lines = !$allHidden && ($attr !== '' || str_contains(strtolower($table->getAttribute('style') . ' ' . $rows[0][0]->getAttribute('style')), 'border'));
+        }
+
+        // ── Lebar kolom ─────────────────────────────────────────────────────
+        $avail = $this->GetPageWidth() - $this->lMargin - $this->rMargin - $indent;
+        $tw    = $this->cssWidth($table->getAttribute('style'));
+        if ($tw !== null && $tw[1] === '%' && $tw[0] > 0 && $tw[0] < 100) {
+            $avail *= $tw[0] / 100;
+        }
+        $cols   = max(array_map('count', $rows));
+        $widths = [];
+        $cols_  = iterator_to_array($xp->query('./colgroup/col|./col', $table));
+        $src    = count($cols_) === $cols ? $cols_ : ($rows[0] ?? []);
+        foreach ($src as $el) {
+            $w = $el instanceof DOMElement ? $this->cssWidth($el->getAttribute('style') . ';width:' . $el->getAttribute('width')) : null;
+            $widths[] = $w !== null && $w[0] > 0 ? $w[0] : null;
+        }
+        $widths = array_pad(array_slice($widths, 0, $cols), $cols, null);
+        $known  = array_filter($widths, static fn ($w) => $w !== null);
+        if (count($known) === $cols) {
+            $sum    = array_sum($known);
+            $widths = array_map(static fn ($w) => $avail * $w / $sum, $widths);
+        } else {
+            $widths = array_fill(0, $cols, $avail / $cols);
+        }
+
+        // ── Tulis per baris ─────────────────────────────────────────────────
+        $pad   = 1.2;
+        $lineH = self::BODY_LINE;
+        $x0    = $this->lMargin + $indent;
+        foreach ($rows as $row) {
+            $est = 1;
+            foreach ($row as $i => $cell) {
+                $this->SetFont($this->family, '', self::BODY_SIZE);
+                $est = max($est, $this->wrappedLines(trim($cell->textContent), ($widths[$i] ?? $widths[0]) - 2 * $pad));
+            }
+            if ($this->GetY() + $est * $lineH + 2 * $pad > $this->GetPageHeight() - $this->bMargin) {
+                $this->AddPage();
+            }
+            $y    = $this->GetY();
+            $maxY = $y;
+            $x    = $x0;
+            foreach ($row as $i => $cell) {
+                $w    = $widths[$i] ?? $widths[0];
+                $runs = $this->cellRuns($cell);
+                if (trim(str_replace("\n", '', implode('', array_column($runs, 'text')))) !== '') {
+                    $this->SetY($y + ($lines ? $pad : 0.4));
+                    if (strtolower($cell->tagName) === 'th') {
+                        $this->styleDepth['b']++;
+                    }
+                    $this->flow($runs, $this->align($cell), $x + ($lines ? $pad : 0), $w - ($lines ? 2 * $pad : 1.5), self::BODY_SIZE);
+                    if (strtolower($cell->tagName) === 'th') {
+                        $this->styleDepth['b']--;
+                    }
+                    $maxY = max($maxY, $this->GetY() + ($lines ? $pad : 0.4));
+                } else {
+                    $maxY = max($maxY, $y + $lineH);
+                }
+                $x += $w;
+            }
+            if ($lines) {
+                $this->SetDrawColor(180, 188, 204);
+                $x = $x0;
+                foreach ($row as $i => $cell) {
+                    $w = $widths[$i] ?? $widths[0];
+                    $this->Rect($x, $y, $w, $maxY - $y);
+                    $x += $w;
+                }
+            }
+            $this->SetXY($this->lMargin, $maxY);
         }
         $this->Ln(2.5);
+    }
+
+    /** Isi sel sebagai potongan bergaya; paragraf di dalam sel dipisah baris baru. */
+    private function cellRuns(DOMElement $cell): array
+    {
+        $runs   = [];
+        $blocks = 0;
+        foreach ($cell->childNodes as $child) {
+            $isBlock = $child instanceof DOMElement && in_array(strtolower($child->tagName), ['p', 'div'], true);
+            if ($isBlock && $blocks++ > 0) {
+                $runs[] = ['text' => "\n", 'style' => $this->styleDepth];
+            }
+            $this->collectRuns($child, $runs);
+        }
+        return $runs;
+    }
+
+    /** Lebar CSS: [angka, '%'|'px'] atau null. */
+    private function cssWidth(string $style): ?array
+    {
+        if (preg_match('/(?:^|;)\s*width\s*:\s*([0-9.]+)\s*(%|px|pt|mm)?/i', $style, $m)) {
+            return [(float) $m[1], strtolower($m[2] ?? 'px') === '%' ? '%' : 'px'];
+        }
+        return null;
     }
 }

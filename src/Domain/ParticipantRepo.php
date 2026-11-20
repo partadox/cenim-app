@@ -206,7 +206,7 @@ final class ParticipantRepo
             "SELECT ra.id, ra.name, ra.email, ra.affiliation, ra.shirt_size, ra.paper_author_id,
                     a.id AS author_id, a.paper_id, a.paper_title, a.first_author_name,
                     r.id AS registration_id, r.status AS registration_status, r.presentation_mode,
-                    i.number AS invoice_number, i.status AS invoice_status
+                    i.number AS invoice_number, i.status AS invoice_status, i.waived_at AS invoice_waived_at
              FROM registration_attendees ra
              JOIN registrations r ON r.id = ra.registration_id
              JOIN authors a ON a.id = r.author_id
@@ -215,6 +215,17 @@ final class ParticipantRepo
              ORDER BY a.paper_id, ra.sort, ra.id",
             [$editionId, self::STATUS, RegistrationRepo::STATUS_DRAFT, RegistrationRepo::STATUS_REJECTED]
         );
+    }
+
+    /** Status bayar untuk tampilan/export: Paid, Waived (gratis, bukan pendapatan), Unpaid, atau ''. */
+    public static function payStatus(array $row): string
+    {
+        $status = (string) ($row['invoice_status'] ?? '');
+        if ($status === InvoiceRepo::STATUS_PAID) {
+            return ($row['invoice_waived_at'] ?? null) !== null ? 'Waived' : 'Paid';
+        }
+
+        return $status === InvoiceRepo::STATUS_UNPAID ? 'Unpaid' : '';
     }
 
     /**
@@ -229,7 +240,7 @@ final class ParticipantRepo
                     a.imported_batch, a.created_at,
                     r.id AS registration_id, r.status AS registration_status, r.total, r.currency,
                     (SELECT COUNT(*) FROM registration_attendees ra WHERE ra.registration_id = r.id) AS guests,
-                    i.number AS invoice_number, i.status AS invoice_status
+                    i.number AS invoice_number, i.status AS invoice_status, i.waived_at AS invoice_waived_at
              FROM authors a
              LEFT JOIN registrations r ON r.author_id = a.id
              LEFT JOIN invoices i ON i.registration_id = r.id AND i.status != '" . InvoiceRepo::STATUS_VOID . "'

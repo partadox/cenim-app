@@ -81,22 +81,68 @@ if (is_post()) {
 }
 
 $rows   = ParticipantRepo::all($editionId);
-$counts = ['accounts' => count($rows), 'submitted' => 0, 'paid' => 0, 'people' => 0];
+$counts = ['accounts' => count($rows), 'submitted' => 0, 'paid' => 0, 'waived' => 0, 'people' => 0];
 foreach ($rows as $row) {
     if (($row['registration_status'] ?? RegistrationRepo::STATUS_DRAFT) !== RegistrationRepo::STATUS_DRAFT) {
         $counts['submitted']++;
         $counts['people'] += 1 + (int) $row['guests'];
     }
-    if (($row['invoice_status'] ?? '') === 'paid') {
+    $pay = ParticipantRepo::payStatus($row);
+    if ($pay === 'Paid') {
         $counts['paid']++;
+    } elseif ($pay === 'Waived') {
+        $counts['waived']++;
     }
 }
 
 // Non-presenter dari paper (dibawa author di registration form).
 $guests = ParticipantRepo::paperGuests($editionId);
 $counts['paper_guests'] = count($guests);
-$counts['paper_guests_paid'] = count(array_filter($guests, static fn (array $g): bool => ($g['invoice_status'] ?? '') === 'paid'));
+$counts['paper_guests_paid'] = count(array_filter($guests, static fn (array $g): bool => ParticipantRepo::payStatus($g) === 'Paid'));
+$counts['paper_guests_waived'] = count(array_filter($guests, static fn (array $g): bool => ParticipantRepo::payStatus($g) === 'Waived'));
 $counts['total'] = $counts['people'] + $counts['paper_guests'];
+
+// ── Export Excel: ?export=all (semua) atau ?export=paid (lunas dibayar, tanpa waived) ──
+$export = (string) input('export', '');
+if (in_array($export, ['all', 'paid'], true)) {
+    $lines = [];
+    $add   = static function (array $person, string $category, string $via, array $reg) use (&$lines, $export): void {
+        $pay = ParticipantRepo::payStatus($reg);
+        if ($export === 'paid' && $pay !== 'Paid') {
+            return;
+        }
+        $lines[] = [
+            count($lines) + 1,
+            $category,
+            (string) $person['name'],
+            (string) ($person['email'] ?? ''),
+            (string) ($person['affiliation'] ?? ''),
+            (string) ($person['country'] ?? ''),
+            $via,
+            $reg['registration_status'] !== null ? ucfirst((string) $reg['registration_status']) : 'Not started',
+            (string) ($reg['invoice_number'] ?? ''),
+            $pay !== '' ? $pay : '-',
+        ];
+    };
+    foreach ($rows as $row) {
+        $add($row, 'Self-registered participant', (string) $row['paper_id'], $row);
+        if ($row['registration_id'] !== null) {
+            foreach (RegistrationRepo::attendees((int) $row['registration_id']) as $guest) {
+                $add($guest + ['country' => $row['country']], 'Guest of a participant', (string) $row['paper_id'], $row);
+            }
+        }
+    }
+    foreach ($guests as $guest) {
+        $add($guest, 'Brought by an author', 'Paper ' . $guest['paper_id'], $guest);
+    }
+
+    Cenim\Support\Xlsx::download(
+        'non-presenters-' . ($edition['slug'] ?? 'cenim') . '-' . ($export === 'paid' ? 'paid-' : '') . gmdate('Ymd') . '.xlsx',
+        'Non-presenters',
+        ['No', 'Category', 'Name', 'Email', 'Affiliation', 'Country', 'Registered via', 'Registration', 'Invoice', 'Payment'],
+        $lines
+    );
+}
 
 View::render('admin/participants', [
     'title'     => 'Participants (non-presenter)',

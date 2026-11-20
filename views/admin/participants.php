@@ -1,7 +1,7 @@
 <?php
 /**
  * @var array      $rows
- * @var array<string,int> $counts  accounts|submitted|paid|people|paper_guests|paper_guests_paid|total
+ * @var array<string,int> $counts  accounts|submitted|paid|waived|people|paper_guests|paper_guests_paid|paper_guests_waived|total
  * @var array      $guests  non-presenter yang dibawa author (ParticipantRepo::paperGuests)
  * @var array|null $editing
  * @var array      $values
@@ -11,6 +11,7 @@
  */
 
 use Cenim\Core\Csrf;
+use Cenim\Domain\ParticipantRepo;
 use Cenim\Domain\RegistrationRepo;
 
 $err = static fn (string $field): string => isset($errors[$field])
@@ -18,8 +19,8 @@ $err = static fn (string $field): string => isset($errors[$field])
 $cls = static fn (string $field): string => isset($errors[$field]) ? ' is-invalid' : '';
 $cards = [
     ['Total non-presenters attending', $counts['total'], 'fa-users', 'self-registered + brought by authors (submitted registrations)'],
-    ['Self-registered participants', $counts['accounts'], 'fa-id-badge', $counts['people'] . ' people incl. their guests · ' . $counts['paid'] . ' paid'],
-    ['Brought by authors', $counts['paper_guests'], 'fa-people-group', $counts['paper_guests_paid'] . ' paid'],
+    ['Self-registered participants', $counts['accounts'], 'fa-id-badge', $counts['people'] . ' people incl. their guests · ' . $counts['paid'] . ' paid' . ($counts['waived'] ? ' · ' . $counts['waived'] . ' waived' : '')],
+    ['Brought by authors', $counts['paper_guests'], 'fa-people-group', $counts['paper_guests_paid'] . ' paid' . ($counts['paper_guests_waived'] ? ' · ' . $counts['paper_guests_waived'] . ' waived' : '')],
     ['Registrations submitted', $counts['submitted'], 'fa-clipboard-list', 'self-registered participants'],
 ];
 ?>
@@ -30,6 +31,12 @@ $cards = [
     </span>
     <a class="text-muted" href="<?= e(admin_url('settings.php')) ?>">change in Settings</a>
     <span class="text-muted ms-2">Public form: <a href="<?= e(author_url('register.php')) ?>" target="_blank" rel="noopener"><?= e(full_url(author_url('register.php'))) ?></a></span>
+    <div class="btn-group ms-auto">
+        <a href="<?= e(admin_url('participants.php?export=all')) ?>" class="btn btn-sm btn-outline-secondary" title="Every non-presenter: self-registered, their guests and people brought by authors">
+            <i class="fa-solid fa-file-excel me-1" style="color:#1d6f42"></i>Export all (Excel)
+        </a>
+        <a href="<?= e(admin_url('participants.php?export=paid')) ?>" class="btn btn-sm btn-outline-secondary" title="Only paid invoices; waived registrations are excluded">Paid only</a>
+    </div>
 </div>
 
 <div class="row g-3 mb-3">
@@ -79,7 +86,7 @@ $cards = [
                                     <td>
                                         <?php if (($row['invoice_number'] ?? '') !== ''): ?>
                                             <?= e((string) $row['invoice_number']) ?>
-                                            <div><span class="cn-badge cn-badge-<?= $row['invoice_status'] === 'paid' ? 'verified' : 'unpaid' ?>"><?= e(ucfirst((string) $row['invoice_status'])) ?></span></div>
+                                            <div><span class="cn-badge cn-badge-<?= ParticipantRepo::payStatus($row) === 'Unpaid' ? 'unpaid' : (ParticipantRepo::payStatus($row) === 'Waived' ? 'draft' : 'verified') ?>"<?= ParticipantRepo::payStatus($row) === 'Waived' ? ' title="Fee waived, not counted as income"' : '' ?>><?= e(ParticipantRepo::payStatus($row)) ?></span></div>
                                         <?php else: ?><span class="text-muted">&mdash;</span><?php endif; ?>
                                     </td>
                                     <td class="text-end" style="white-space:nowrap">
@@ -173,7 +180,7 @@ $cards = [
                             <td>
                                 <?php if (($g['invoice_number'] ?? '') !== ''): ?>
                                     <?= e((string) $g['invoice_number']) ?>
-                                    <div><span class="cn-badge cn-badge-<?= $g['invoice_status'] === 'paid' ? 'verified' : 'unpaid' ?>"><?= e(ucfirst((string) $g['invoice_status'])) ?></span></div>
+                                    <div><span class="cn-badge cn-badge-<?= ParticipantRepo::payStatus($g) === 'Unpaid' ? 'unpaid' : (ParticipantRepo::payStatus($g) === 'Waived' ? 'draft' : 'verified') ?>"<?= ParticipantRepo::payStatus($g) === 'Waived' ? ' title="Fee waived, not counted as income"' : '' ?>><?= e(ParticipantRepo::payStatus($g)) ?></span></div>
                                 <?php else: ?><span class="text-muted">&mdash;</span><?php endif; ?>
                             </td>
                         </tr>

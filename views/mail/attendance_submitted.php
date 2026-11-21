@@ -6,6 +6,7 @@
  * @var string $mode
  * @var string $presenter
  * @var string $videoUrl
+ * @var string $slidesUrl
  * @var string $loginUrl
  */
 ?>
@@ -24,24 +25,29 @@
             <div style="color:#6b7893">Presentation</div>
             <div style="padding-bottom:8px"><?= e($mode) ?></div>
             <div style="color:#6b7893">Presenter</div>
-            <div style="padding-bottom:<?= $videoUrl !== '' ? '8' : '0' ?>px"><?= e($presenter) ?></div>
+            <?php $slidesUrl = (string) ($slidesUrl ?? ''); ?>
+            <div style="padding-bottom:<?= $videoUrl !== '' || $slidesUrl !== '' ? '8' : '0' ?>px"><?= e($presenter) ?></div>
             <?php if ($videoUrl !== ''): ?>
                 <div style="color:#6b7893">Presentation video</div>
-                <div><a href="<?= e($videoUrl) ?>" style="color:#003981"><?= e($videoUrl) ?></a></div>
+                <div style="padding-bottom:<?= $slidesUrl !== '' ? '8' : '0' ?>px"><a href="<?= e($videoUrl) ?>" style="color:#003981"><?= e($videoUrl) ?></a></div>
+            <?php endif; ?>
+            <?php if ($slidesUrl !== ''): ?>
+                <div style="color:#6b7893">Presentation slides</div>
+                <div><a href="<?= e($slidesUrl) ?>" style="color:#003981"><?= e($slidesUrl) ?></a></div>
             <?php endif; ?>
         </td>
     </tr>
 </table>
 
-<?php if ($videoUrl !== ''): ?>
+<?php if ($videoUrl !== '' || $slidesUrl !== ''): ?>
     <p style="margin:0 0 14px">
-        Please keep the video link accessible (Google Drive: "Anyone with the link"; YouTube: Unlisted) until the conference is over.
+        Please keep the links accessible (Google Drive: "Anyone with the link"; YouTube: Unlisted) until the conference is over.
     </p>
 <?php endif; ?>
 
 <p style="margin:0 0 20px">
     <a href="<?= e($loginUrl) ?>"
        style="background:#003981;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:6px;display:inline-block;font-size:13px">
-        Review or change the video link
+        Review or change the links
     </a>
 </p>

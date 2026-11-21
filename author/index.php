@@ -250,28 +250,32 @@ $attendance = $author !== null ? AttendanceRepo::findForPaper((int) $author['id'
 $attendOpen = AttendanceRepo::isOpen($editionId) && !edition_is_archive();
 $isOnline   = (string) ($registration['presentation_mode'] ?? 'offline') === 'online';
 $hasVideo   = ($attendance['video_url'] ?? '') !== '';
+$hasSlides  = ($attendance['slides_url'] ?? '') !== '';
 
 if (!AttendanceRepo::isAvailable($invoice)) {
-    $step5 = ['state' => 'locked', 'note' => 'Opens once your payment is confirmed (online presentations send the video here).', 'url' => null, 'cta' => null];
+    $step5 = ['state' => 'locked', 'note' => 'Opens once your payment is confirmed (send the video and the slides link here).', 'url' => null, 'cta' => null];
 } elseif ($hasVideo) {
     $step5 = [
         'state' => 'done',
-        'note'  => 'Video link sent' . ($isOnline ? ' for the online presentation.' : ' as a backup.'),
+        'note'  => 'Video link sent' . ($isOnline ? ' for the online presentation' : ' as a backup')
+            . ($hasSlides ? ', slides link sent.' : '. You can also send the link to your slides.'),
         'url'   => author_url('attendance.php'),
         'cta'   => $attendOpen ? 'View or change' : 'View',
     ];
 } elseif (!$isOnline) {
     $step5 = [
         'state' => 'done',
-        'note'  => 'Presenting offline — no video needed. You may still send one as a backup.',
+        'note'  => $hasSlides
+            ? 'Presenting offline — slides link sent. You may still send a backup video.'
+            : 'Presenting offline — no video needed. Please send the link to your slides; a backup video is optional.',
         'url'   => author_url('attendance.php'),
-        'cta'   => 'Send a backup video',
+        'cta'   => $hasSlides ? 'View or change' : 'Send the slides link',
     ];
 } else {
     $step5 = [
         'state' => 'active',
         'note'  => $attendOpen
-            ? 'Online presentation: send the link to the pre-recorded video (Google Drive or YouTube).'
+            ? 'Online presentation: send the link to the pre-recorded video (Google Drive or YouTube) and to your slides.'
             : 'The video presentation form is currently closed.',
         'url'   => author_url('attendance.php'),
         'cta'   => 'Send the video',

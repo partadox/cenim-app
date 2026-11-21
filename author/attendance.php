@@ -1,6 +1,7 @@
 <?php
 /**
- * Form 5 — Video Presentation: link video presentasi (Google Drive / YouTube).
+ * Form 5 — Video Presentation: link video presentasi (Google Drive / YouTube)
+ * dan link file slide (opsional).
  *
  * Presenter dan mode offline/online diisi di Registration form; di sini hanya
  * link video — wajib untuk presentasi online, opsional (cadangan) untuk
@@ -54,8 +55,9 @@ $extraFields  = FormRepo::fields($editionId, FormRepo::FORM_ATTENDANCE);
 $errors       = [];
 
 $values = [
-    'video_url' => (string) ($attendance['video_url'] ?? ''),
-    'note'      => (string) ($attendance['note'] ?? ''),
+    'video_url'  => (string) ($attendance['video_url'] ?? ''),
+    'slides_url' => (string) ($attendance['slides_url'] ?? ''),
+    'note'       => (string) ($attendance['note'] ?? ''),
     'extra'     => FormRepo::decode($attendance['extra_json'] ?? null),
 ];
 
@@ -76,8 +78,9 @@ if (is_post()) {
     }
 
     $values = [
-        'video_url' => (string) ($_POST['video_url'] ?? ''),
-        'note'      => (string) ($_POST['note'] ?? ''),
+        'video_url'  => (string) ($_POST['video_url'] ?? ''),
+        'slides_url' => (string) ($_POST['slides_url'] ?? ''),
+        'note'       => (string) ($_POST['note'] ?? ''),
         'extra'     => $extra['values'],
     ];
 
@@ -90,7 +93,7 @@ if (is_post()) {
             'actor_id'    => (string) AuthorAuth::email(),
             'target_type' => 'attendance',
             'target_id'   => $id,
-            'meta'        => ['paper_id' => $paper['paper_id'], 'mode' => $mode, 'video' => $check['values']['video_url'] !== null],
+            'meta'        => ['paper_id' => $paper['paper_id'], 'mode' => $mode, 'video' => $check['values']['video_url'] !== null, 'slides' => $check['values']['slides_url'] !== null],
         ]);
 
         Mailer::send(
@@ -104,11 +107,12 @@ if (is_post()) {
                 'mode'       => RegistrationRepo::MODES[$mode] ?? ucfirst($mode),
                 'presenter'  => (string) ($presenter['name'] ?? '-'),
                 'videoUrl'   => (string) ($check['values']['video_url'] ?? ''),
+                'slidesUrl'  => (string) ($check['values']['slides_url'] ?? ''),
                 'loginUrl'   => full_url(author_url('attendance.php')),
             ]
         );
 
-        Session::flash('success', 'Thank you — the presentation video has been recorded. You can still change it while the form is open.');
+        Session::flash('success', 'Thank you — your presentation links have been recorded. You can still change it while the form is open.');
         Response::redirect(author_url('index.php'));
     }
 

@@ -1,7 +1,7 @@
 <?php
 /**
  * Presentations: semua paper yang sudah lunas — presenter, offline/online,
- * peserta tambahan (dengan ukuran baju), dan video presentasi.
+ * peserta tambahan (dengan ukuran baju), video presentasi, dan link slide.
  * Data presenter/mode/peserta dari Registration form; video dari Video
  * Presentation form. ?export=1 → CSV (satu baris per orang yang datang).
  */
@@ -28,7 +28,7 @@ if (input('export') !== null) {
     if ($shirtOn) {
         $headers[] = 'Shirt size';
     }
-    array_push($headers, 'Video host', 'Video link', 'Note');
+    array_push($headers, 'Video host', 'Video link', 'Slides link', 'Note');
 
     $lines = [];
     foreach ($rows as $row) {
@@ -46,6 +46,7 @@ if (input('export') !== null) {
                 $line,
                 $i === 0 ? (AttendanceRepo::VIDEO_HOSTS[$row['video_host'] ?? ''] ?? '') : '',
                 $i === 0 ? (string) ($row['video_url'] ?? '') : '',
+                $i === 0 ? (string) ($row['slides_url'] ?? '') : '',
                 $i === 0 ? (string) ($row['note'] ?? '') : ''
             );
             $lines[] = $line;

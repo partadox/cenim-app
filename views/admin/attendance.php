@@ -53,7 +53,7 @@ $tabs = [
         <div class="table-responsive">
             <table class="table table-sm align-middle mb-0" style="font-size:12.5px">
                 <thead class="table-light">
-                    <tr><th>Paper</th><th>Mode</th><th>Presenter</th><th>Also attending (non-presenter)</th><th>Video</th><th>Answers &amp; note</th></tr>
+                    <tr><th>Paper</th><th>Mode</th><th>Presenter</th><th>Also attending (non-presenter)</th><th>Video</th><th>Slides</th><th>Answers &amp; note</th></tr>
                 </thead>
                 <tbody>
                     <?php foreach ($rows as $row): ?>
@@ -93,6 +93,13 @@ $tabs = [
                                     <span class="text-danger" style="font-size:11.5px">missing</span>
                                 <?php else: ?>—<?php endif; ?>
                             </td>
+                            <td>
+                                <?php if (($row['slides_url'] ?? '') !== ''): ?>
+                                    <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="<?= e((string) $row['slides_url']) ?>">
+                                        <i class="fa-solid fa-file-powerpoint me-1"></i>Open
+                                    </a>
+                                <?php else: ?>—<?php endif; ?>
+                            </td>
                             <td style="font-size:11.5px;max-width:240px">
                                 <?php foreach ($extra as $field): ?>
                                     <?php $v = $answers[(string) $field['field_key']] ?? null; ?>
@@ -106,7 +113,7 @@ $tabs = [
                         </tr>
                     <?php endforeach; ?>
                     <?php if ($rows === []): ?>
-                        <tr><td colspan="6" class="text-muted p-3">No paper here yet — a paper appears once its payment is confirmed.</td></tr>
+                        <tr><td colspan="7" class="text-muted p-3">No paper here yet — a paper appears once its payment is confirmed.</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>

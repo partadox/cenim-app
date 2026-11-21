@@ -30,6 +30,9 @@ $err = static fn (string $field): string => isset($errors[$field])
     <?php if (($attendance['video_url'] ?? '') !== ''): ?>
         <span class="cn-badge cn-badge-verified"><i class="fa-solid fa-check me-1"></i>Video link sent</span>
     <?php endif; ?>
+    <?php if (($attendance['slides_url'] ?? '') !== ''): ?>
+        <span class="cn-badge cn-badge-verified"><i class="fa-solid fa-check me-1"></i>Slides link sent</span>
+    <?php endif; ?>
     <?php if ($deadline !== ''): ?>
         <span class="text-muted ms-auto" style="font-size:12.5px"><i class="fa-regular fa-clock me-1"></i>Open until <?= e(fmt_date($deadline . ' 00:00:00')) ?></span>
     <?php endif; ?>
@@ -82,6 +85,24 @@ $err = static fn (string $field): string => isset($errors[$field])
                         <li><b>Google Drive</b>: share the file as "Anyone with the link — Viewer" so the committee can download it.</li>
                         <li><b>YouTube</b>: upload as <b>Unlisted</b> (not Private).</li>
                         <li>MP4, 1080p or 720p, within the presentation time given by the committee; the presenter's face/voice should be in the video.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="cn-card mb-3">
+                <div class="cn-card-head">
+                    <i class="fa-solid fa-file-powerpoint text-muted"></i>
+                    <h2>Presentation slides</h2>
+                    <span class="cn-badge cn-badge-draft ms-auto">optional</span>
+                </div>
+                <div class="cn-card-body">
+                    <label class="form-label" for="slides_url">Link to the slide file (PPT, PPTX or PDF)</label>
+                    <input type="url" class="form-control<?= isset($errors['slides_url']) ? ' is-invalid' : '' ?>" id="slides_url" name="slides_url"
+                           value="<?= e((string) $values['slides_url']) ?>" placeholder="https://drive.google.com/file/d/… or https://docs.google.com/presentation/…" <?= $disabled ?>>
+                    <?= $err('slides_url') ?>
+                    <ul class="text-muted mt-2 mb-0 ps-3" style="font-size:12px">
+                        <li>Upload the file to Google Drive, Google Slides or OneDrive and share it as "Anyone with the link — Viewer".</li>
+                        <li>The committee prepares the slides on the room computer, so please send the final version.</li>
                     </ul>
                 </div>
             </div>

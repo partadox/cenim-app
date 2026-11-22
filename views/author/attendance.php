@@ -1,6 +1,6 @@
 <?php
 /**
- * Form 5 — Video Presentation.
+ * Form 5 — Presentation Files (video + slide).
  *
  * @var array      $author       paper terpilih
  * @var array|null $attendance
@@ -42,7 +42,7 @@ $err = static fn (string $field): string => isset($errors[$field])
 
 <?php if (!$isOpen): ?>
     <div class="alert alert-warning" style="font-size:13px">
-        <i class="fa-solid fa-lock me-1"></i>The video presentation form is closed. Please contact the secretariat if something has changed.
+        <i class="fa-solid fa-lock me-1"></i>The presentation files form is closed. Please contact the secretariat if something has changed.
     </div>
 <?php endif; ?>
 
@@ -71,7 +71,7 @@ $err = static fn (string $field): string => isset($errors[$field])
                     <?php if (!$isOnline): ?>
                         <p class="text-muted" style="font-size:12.5px">
                             <i class="fa-solid fa-circle-info me-1"></i>
-                            This paper is presented <b>offline</b>, so no video is needed. You may still send one as a backup
+                            This paper is presented <b>offline</b>, so the video is optional. You may send one as a backup
                             in case the presenter cannot travel.
                         </p>
                     <?php endif; ?>
@@ -93,16 +93,21 @@ $err = static fn (string $field): string => isset($errors[$field])
                 <div class="cn-card-head">
                     <i class="fa-solid fa-file-powerpoint text-muted"></i>
                     <h2>Presentation slides</h2>
-                    <span class="cn-badge cn-badge-draft ms-auto">optional</span>
+                    <span class="cn-badge <?= $isOnline ? 'cn-badge-draft' : 'cn-badge-submitted' ?> ms-auto">
+                        <?= $isOnline ? 'optional — online presentation' : 'required — offline presentation' ?>
+                    </span>
                 </div>
                 <div class="cn-card-body">
-                    <label class="form-label" for="slides_url">Link to the slide file (PPT, PPTX or PDF)</label>
+                    <label class="form-label" for="slides_url">
+                        Link to the slide file (PPT, PPTX or PDF)<?= $isOnline ? '' : ' <span class="text-danger">*</span>' ?>
+                    </label>
                     <input type="url" class="form-control<?= isset($errors['slides_url']) ? ' is-invalid' : '' ?>" id="slides_url" name="slides_url"
                            value="<?= e((string) $values['slides_url']) ?>" placeholder="https://drive.google.com/file/d/… or https://docs.google.com/presentation/…" <?= $disabled ?>>
                     <?= $err('slides_url') ?>
                     <ul class="text-muted mt-2 mb-0 ps-3" style="font-size:12px">
                         <li>Upload the file to Google Drive, Google Slides or OneDrive and share it as "Anyone with the link — Viewer".</li>
                         <li>The committee prepares the slides on the room computer, so please send the final version.</li>
+                        <li>Use the official template: <a href="https://its.id/CENIM2026-TEMPLATE" target="_blank" rel="noopener">its.id/CENIM2026-TEMPLATE</a></li>
                     </ul>
                 </div>
             </div>

@@ -253,32 +253,26 @@ $hasVideo   = ($attendance['video_url'] ?? '') !== '';
 $hasSlides  = ($attendance['slides_url'] ?? '') !== '';
 
 if (!AttendanceRepo::isAvailable($invoice)) {
-    $step5 = ['state' => 'locked', 'note' => 'Opens once your payment is confirmed (send the video and the slides link here).', 'url' => null, 'cta' => null];
-} elseif ($hasVideo) {
+    $step5 = ['state' => 'locked', 'note' => 'Opens once your payment is confirmed. Online: send the video; offline: send the slides.', 'url' => null, 'cta' => null];
+} elseif (AttendanceRepo::complete($attendance, $isOnline)) {
     $step5 = [
         'state' => 'done',
-        'note'  => 'Video link sent' . ($isOnline ? ' for the online presentation' : ' as a backup')
-            . ($hasSlides ? ', slides link sent.' : '. You can also send the link to your slides.'),
+        'note'  => $isOnline
+            ? 'Video link sent' . ($hasSlides ? ', slides link sent.' : '. The slides link is optional.')
+            : 'Slides link sent' . ($hasVideo ? ', backup video sent.' : '. A backup video is optional.'),
         'url'   => author_url('attendance.php'),
         'cta'   => $attendOpen ? 'View or change' : 'View',
-    ];
-} elseif (!$isOnline) {
-    $step5 = [
-        'state' => 'done',
-        'note'  => $hasSlides
-            ? 'Presenting offline — slides link sent. You may still send a backup video.'
-            : 'Presenting offline — no video needed. Please send the link to your slides; a backup video is optional.',
-        'url'   => author_url('attendance.php'),
-        'cta'   => $hasSlides ? 'View or change' : 'Send the slides link',
     ];
 } else {
     $step5 = [
         'state' => 'active',
-        'note'  => $attendOpen
-            ? 'Online presentation: send the link to the pre-recorded video (Google Drive or YouTube) and to your slides.'
-            : 'The video presentation form is currently closed.',
+        'note'  => !$attendOpen
+            ? 'The presentation files form is currently closed.'
+            : ($isOnline
+                ? 'Online presentation: send the link to the pre-recorded video (required) and to your slides (optional).'
+                : 'Offline presentation: send the link to your slides (required) and a backup video (optional).'),
         'url'   => author_url('attendance.php'),
-        'cta'   => 'Send the video',
+        'cta'   => $isOnline ? 'Send the video' : 'Send the slides',
     ];
 }
 
@@ -323,8 +317,8 @@ $steps = [
     ],
     $isParticipant ? null : [
         'no'    => 5,
-        'title' => 'Video Presentation Form',
-        'icon'  => 'fa-video',
+        'title' => 'Presentation Files',
+        'icon'  => $isOnline ? 'fa-video' : 'fa-file-powerpoint',
         'state' => $step5['state'],
         'note'  => $step5['note'],
         'url'   => $step5['url'],

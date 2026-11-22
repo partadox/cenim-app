@@ -18,7 +18,7 @@ use Cenim\Support\Csv;
 
 $edition   = current_edition();
 $editionId = (int) ($edition['id'] ?? 0);
-$filter    = in_array(input('mode'), ['offline', 'online', 'missing'], true) ? (string) input('mode') : '';
+$filter    = in_array(input('mode'), ['offline', 'online', 'missing', 'missing_slides'], true) ? (string) input('mode') : '';
 $rows      = AttendanceRepo::overview($editionId, $filter);
 $extra     = FormRepo::fields($editionId, FormRepo::FORM_ATTENDANCE);
 $shirtOn   = RegistrationRepo::shirtEnabled($editionId);
@@ -57,16 +57,17 @@ if (input('export') !== null) {
 }
 
 $all    = AttendanceRepo::overview($editionId);
-$counts = ['offline' => 0, 'online' => 0, 'missing' => 0, 'people' => 0];
+$counts = ['offline' => 0, 'online' => 0, 'missing' => 0, 'missing_slides' => 0, 'people' => 0];
 foreach ($all as $row) {
     $counts[$row['mode'] === 'online' ? 'online' : 'offline']++;
     $counts['missing'] += $row['missing'] ? 1 : 0;
+    $counts['missing_slides'] += $row['missing_slides'] ? 1 : 0;
     $counts['people']  += 1 + count($row['attendees']);
 }
 
 View::render('admin/attendance', [
     'title'    => 'Presentations',
-    'subtitle' => ($edition['name'] ?? '') . ' — paid papers: presenter, attendees and videos',
+    'subtitle' => ($edition['name'] ?? '') . ' — paid papers: presenter, attendees, videos and slides',
     'active'   => 'attendance',
     'edition'  => $edition,
     'rows'     => $rows,

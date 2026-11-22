@@ -7,13 +7,13 @@ namespace Cenim\Domain;
 use Cenim\Core\Db;
 
 /**
- * Form 5 — Video Presentation (satu per paper, tabel `attendances`).
+ * Form 5 — Presentation Files (satu per paper, tabel `attendances`).
  *
  * Siapa yang presentasi, mode offline/online, dan siapa saja yang datang
  * ditentukan di Registration form (registrations + registration_attendees).
- * Form ini menerima link video presentasi (Google Drive / YouTube):
- * wajib untuk presentasi online, opsional (cadangan) untuk offline; dan link
- * file slide (PPT/PDF) yang opsional untuk semua presenter.
+ * Form ini menerima link video presentasi (Google Drive / YouTube) dan link
+ * file slide (PPT/PDF). Online: video wajib, slide opsional.
+ * Offline: slide wajib, video opsional (cadangan).
  *
  * Tersedia setelah pembayaran lunas dan selama dibuka (Settings →
  * attendance_open + batas waktu attendance_deadline). Kolom mode/presenter/
@@ -81,12 +81,18 @@ final class AttendanceRepo
         return filter_var($url, FILTER_VALIDATE_URL) !== false && preg_match('#^https://#i', $url) === 1;
     }
 
+    /** Yang wajib sudah dikirim? Online: video; offline: slide. */
+    public static function complete(?array $attendance, bool $isOnline): bool
+    {
+        return ((string) ($attendance[$isOnline ? 'video_url' : 'slides_url'] ?? '')) !== '';
+    }
+
     /**
      * Validasi link video dan link slide.
      *
      * @return array{values:array<string,mixed>, errors:array<string,string>}
      */
-    public static function validate(array $input, bool $videoRequired): array
+    public static function validate(array $input, bool $videoRequired, bool $slidesRequired = false): array
     {
         $errors = [];
         $video  = trim((string) ($input['video_url'] ?? ''));
@@ -101,7 +107,11 @@ final class AttendanceRepo
         }
 
         $slides = trim((string) ($input['slides_url'] ?? ''));
-        if ($slides !== '' && !self::validSlidesUrl($slides)) {
+        if ($slides === '') {
+            if ($slidesRequired) {
+                $errors['slides_url'] = 'Please paste the link to your presentation slides.';
+            }
+        } elseif (!self::validSlidesUrl($slides)) {
             $errors['slides_url'] = 'Use a full link starting with https:// (Google Drive, Google Slides, OneDrive, ...).';
         }
 
@@ -159,7 +169,7 @@ final class AttendanceRepo
      * Daftar untuk admin: semua paper yang sudah lunas — presenter, mode,
      * siapa saja yang datang (dengan ukuran baju), dan video presentasinya.
      *
-     * @param string $filter '' | offline | online | missing (online tanpa video)
+     * @param string $filter '' | offline | online | missing (online tanpa video) | missing_slides (offline tanpa slide)
      * @return array<int,array<string,mixed>>
      */
     public static function overview(int $editionId, string $filter = ''): array
@@ -183,11 +193,13 @@ final class AttendanceRepo
         foreach ($rows as $row) {
             $row['mode']      = (string) ($row['mode'] ?: 'offline');
             $row['attendees'] = RegistrationRepo::attendees((int) $row['registration_id']);
-            $row['missing']   = $row['mode'] === 'online' && ($row['video_url'] ?? '') === '';
+            $row['missing']        = $row['mode'] === 'online' && ($row['video_url'] ?? '') === '';
+            $row['missing_slides'] = $row['mode'] !== 'online' && ($row['slides_url'] ?? '') === '';
 
             $keep = match ($filter) {
                 'offline', 'online' => $row['mode'] === $filter,
                 'missing'           => $row['missing'],
+                'missing_slides'    => $row['missing_slides'],
                 default             => true,
             };
             if ($keep) {

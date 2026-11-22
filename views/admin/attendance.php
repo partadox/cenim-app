@@ -1,7 +1,7 @@
 <?php
 /**
  * @var array  $rows
- * @var array  $counts  offline|online|missing|people
+ * @var array  $counts  offline|online|missing|missing_slides|people
  * @var int    $total
  * @var string $filter
  * @var array  $extra   field Form Builder (attend_step3)
@@ -17,6 +17,7 @@ $tabs = [
     'offline' => ['Offline', $counts['offline']],
     'online'  => ['Online', $counts['online']],
     'missing' => ['Online without video', $counts['missing']],
+    'missing_slides' => ['Offline without slides', $counts['missing_slides']],
 ];
 ?>
 
@@ -98,6 +99,8 @@ $tabs = [
                                     <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="<?= e((string) $row['slides_url']) ?>">
                                         <i class="fa-solid fa-file-powerpoint me-1"></i>Open
                                     </a>
+                                <?php elseif ($row['missing_slides']): ?>
+                                    <span class="text-danger" style="font-size:11.5px">missing</span>
                                 <?php else: ?>—<?php endif; ?>
                             </td>
                             <td style="font-size:11.5px;max-width:240px">

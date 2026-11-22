@@ -146,7 +146,7 @@ $submittedReg = $registration !== null && (string) $registration['status'] !== R
                     </div>
                     <div id="onlineBox" class="form-text mt-3" style="font-size:12px"<?= $values['presentation_mode'] === 'online' ? '' : ' hidden' ?>>
                         <i class="fa-solid fa-circle-info me-1"></i>
-                        Online presenters send a pre-recorded video through the Video Presentation form after the payment is confirmed.
+                        Online presenters send a pre-recorded video through the Presentation Files form after the payment is confirmed.
                     </div>
                 </div>
             </div>

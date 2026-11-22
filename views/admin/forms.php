@@ -11,7 +11,7 @@ use Cenim\Domain\FormRepo;
 $forms = [
     FormRepo::FORM_REGISTRATION => 'Registration form',
     FormRepo::FORM_PAYMENT      => 'Payment form',
-    FormRepo::FORM_ATTENDANCE   => 'Video presentation form',
+    FormRepo::FORM_ATTENDANCE   => 'Presentation files form',
 ];
 ?>
 

@@ -65,7 +65,7 @@ use Cenim\Core\Csrf;
                         <div class="form-check m-0">
                             <input class="form-check-input" type="checkbox" id="attendance_open" name="attendance_open" value="1"
                                 <?= $values['attendance_open'] ? 'checked' : '' ?>>
-                            <label class="form-check-label" for="attendance_open">Video presentation form open (after payment)</label>
+                            <label class="form-check-label" for="attendance_open">Presentation files form open (after payment)</label>
                         </div>
                         <div class="d-flex align-items-center gap-2">
                             <label for="attendance_deadline" class="text-muted" style="font-size:12.5px">until</label>

@@ -108,7 +108,7 @@ View::render('admin/forms', [
     'title'    => 'Form builder',
     'subtitle' => match ($formKey) {
         FormRepo::FORM_PAYMENT    => 'Extra questions on the payment form',
-        FormRepo::FORM_ATTENDANCE => 'Extra questions on the video presentation form',
+        FormRepo::FORM_ATTENDANCE => 'Extra questions on the presentation files form',
         default                   => 'Extra questions on the author registration form',
     },
     'active'   => 'forms',

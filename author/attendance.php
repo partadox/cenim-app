@@ -1,7 +1,7 @@
 <?php
 /**
- * Form 5 — Video Presentation: link video presentasi (Google Drive / YouTube)
- * dan link file slide (opsional).
+ * Form 5 — Presentation Files: link video presentasi (Google Drive / YouTube)
+ * dan link file slide. Online: video wajib; offline: slide wajib.
  *
  * Presenter dan mode offline/online diisi di Registration form; di sini hanya
  * link video — wajib untuk presentasi online, opsional (cadangan) untuk
@@ -32,7 +32,7 @@ $paper     = current_author();
 $editionId = (int) ($edition['id'] ?? 0);
 
 if ($paper === null || $editionId === 0) {
-    Response::abort(503, 'The video presentation form is not available right now.');
+    Response::abort(503, 'The presentation files form is not available right now.');
 }
 
 if (Cenim\Domain\ParticipantRepo::isParticipant($paper) || Cenim\Domain\AuthorRepo::isWithdrawn($paper)) {
@@ -41,7 +41,7 @@ if (Cenim\Domain\ParticipantRepo::isParticipant($paper) || Cenim\Domain\AuthorRe
 
 $invoice = InvoiceRepo::findForAuthor((int) $paper['id']);
 if (!AttendanceRepo::isAvailable($invoice)) {
-    Session::flash('info', 'The video presentation form opens once the payment of this paper is confirmed.');
+    Session::flash('info', 'The presentation files form opens once the payment of this paper is confirmed.');
     Response::redirect(author_url('index.php'));
 }
 
@@ -65,11 +65,11 @@ if (is_post()) {
     Csrf::verify();
 
     if (!$isOpen) {
-        Session::flash('error', 'The video presentation form is closed. Please contact the secretariat for changes.');
+        Session::flash('error', 'The presentation files form is closed. Please contact the secretariat for changes.');
         Response::redirect(author_url('attendance.php'));
     }
 
-    $check = AttendanceRepo::validate($_POST, $isOnline);
+    $check = AttendanceRepo::validate($_POST, $isOnline, !$isOnline);
     $extra = FormRepo::validate($extraFields, (array) ($_POST['extra'] ?? []));
 
     $errors = $check['errors'];
@@ -99,7 +99,7 @@ if (is_post()) {
         Mailer::send(
             (string) ($person['email'] ?? $paper['email']),
             (string) ($person['name'] ?? $paper['first_author_name']),
-            'Presentation video received — ' . ($edition['name'] ?? 'CENIM') . ' (paper ' . $paper['paper_id'] . ')',
+            'Presentation files received — ' . ($edition['name'] ?? 'CENIM') . ' (paper ' . $paper['paper_id'] . ')',
             'attendance_submitted',
             [
                 'paperId'    => (string) $paper['paper_id'],
@@ -120,7 +120,7 @@ if (is_post()) {
 }
 
 View::render('author/attendance', [
-    'title'        => 'Video presentation',
+    'title'        => 'Presentation files',
     'edition'      => $edition,
     'author'       => $paper,
     'attendance'   => $attendance,

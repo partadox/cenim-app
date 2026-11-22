@@ -25,7 +25,7 @@ final class EditionCloner
     public const GROUPS = [
         'settings'     => ['Settings', 'Registration & payment switches, bank accounts, contacts, signatory, document notes, email, letterhead texts', true],
         'fees'         => ['Fees & packages', 'Fee categories, packages, extra page/paper rules', true],
-        'forms'        => ['Form builder', 'Extra questions on the registration, payment & video presentation forms', true],
+        'forms'        => ['Form builder', 'Extra questions on the registration, payment & presentation files forms', true],
         'content'      => ['Landing content', 'All edited texts of the public pages (CMS blocks)', true],
         'timeline'     => ['Timeline', 'Important dates (text only; previous extensions are cleared)', true],
         'certificates' => ['Certificate templates', 'Template images, signature, layout of every type (number bases are cleared)', true],

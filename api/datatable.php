@@ -357,6 +357,11 @@ switch ($table) {
             $params[] = $currency;
         }
 
+        // Jenis pembayar: author | non_presenter | workshop | '' (semua).
+        [$typeSql, $typeParams] = Cenim\Domain\PaymentRepo::typeWhere((string) input('f_type', ''));
+        $where .= $typeSql;
+        $params = array_merge($params, $typeParams);
+
         DataTable::respond([
             'table' => 'payments p',
             'joins' => 'JOIN invoices i ON i.id = p.invoice_id
@@ -375,7 +380,7 @@ switch ($table) {
                 'proof'             => ['select' => 'p.proof_file_id', 'searchable' => false, 'orderable' => false],
                 'actions'           => ['select' => 'p.id', 'searchable' => false, 'orderable' => false],
             ],
-            'extra_select'  => ['id' => 'p.id', 'currency' => 'p.currency', 'invoice_total' => 'i.total'],
+            'extra_select'  => ['id' => 'p.id', 'currency' => 'p.currency', 'invoice_total' => 'i.total', 'method' => 'p.method'],
             'where'         => $where,
             'params'        => $params,
             'default_order' => ['paid_at', 'desc'],
@@ -384,10 +389,13 @@ switch ($table) {
                 $currency   = (string) $row['currency'];
                 $difference = (float) $row['difference'];
 
-                $diffCell = abs($difference) < 0.009
+                $waived   = (string) ($row['method'] ?? '') === 'waived';
+                $diffCell = $waived
+                    ? '<span class="cn-badge cn-badge-draft" title="Fee waived, not counted as income">waived</span>'
+                    : (abs($difference) < 0.009
                     ? '<span class="text-muted">&mdash;</span>'
                     : '<span class="cn-badge ' . ($difference < 0 ? 'cn-badge-rejected' : 'cn-badge-unpaid') . '">'
-                        . ($difference > 0 ? '+' : '-') . e(fmt_money(abs($difference), $currency)) . '</span>';
+                        . ($difference > 0 ? '+' : '-') . e(fmt_money(abs($difference), $currency)) . '</span>');
 
                 return [
                     'invoice_number'    => '<code>' . e((string) $row['invoice_number']) . '</code>',
@@ -402,9 +410,11 @@ switch ($table) {
                         : '<span style="font-size:12px">' . e(fmt_date(substr((string) $row['paid_at'], 0, 10) . ' 00:00:00')) . '</span>',
                     'amount_paid'       => '<b>' . e(fmt_money((float) $row['amount_paid'], $currency)) . '</b>',
                     'difference'        => $diffCell,
-                    'proof'             => $row['proof'] !== null
+                    'proof'             => $waived
+                        ? '<span class="text-muted">&mdash;</span>'
+                        : ($row['proof'] !== null
                         ? '<i class="fa-solid fa-paperclip" style="color:#12704a" title="Proof attached"></i>'
-                        : '<i class="fa-solid fa-triangle-exclamation text-warning" title="No proof"></i>',
+                        : '<i class="fa-solid fa-triangle-exclamation text-warning" title="No proof"></i>'),
                     'status'            => '<span class="cn-badge '
                         . e(Cenim\Domain\PaymentRepo::statusBadgeClass((string) $row['status'])) . '">'
                         . e(ucfirst((string) $row['status'])) . '</span>',

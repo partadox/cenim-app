@@ -1,3 +1,6 @@
+<?php
+/** @var string $type  filter jenis pembayar dari halaman */
+?>
 <script>
 (function () {
     var filters = {
@@ -13,6 +16,7 @@
             type: 'POST',
             data: function (d) {
                 d.table = 'payments';
+                d.f_type = <?= json_encode($type) ?>;
                 d.csrf_token = window.CENIM.csrf;
                 Object.keys(filters).forEach(function (key) {
                     d[key] = filters[key] ? filters[key].value : '';

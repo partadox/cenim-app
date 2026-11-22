@@ -247,8 +247,10 @@ final class PaymentRepo
      *
      * @return array<int,array<string,mixed>>
      */
-    public static function unpaidInvoices(int $editionId): array
+    public static function unpaidInvoices(int $editionId, string $type = ''): array
     {
+        [$typeSql, $typeParams] = self::typeWhere($type);
+
         return Db::all(
             "SELECT i.id, i.number, i.total, i.currency, i.issued_at, i.due_date,
                     r.id AS registration_id, a.paper_id, a.first_author_name, a.email,
@@ -258,20 +260,51 @@ final class PaymentRepo
              JOIN authors a ON a.id = r.author_id
              LEFT JOIN payments p ON p.invoice_id = i.id
              WHERE i.edition_id = ? AND i.status = ?
-               AND (p.id IS NULL OR p.status = ?)
+               AND (p.id IS NULL OR p.status = ?)" . $typeSql . "
              ORDER BY i.issued_at",
-            [$editionId, InvoiceRepo::STATUS_UNPAID, self::STATUS_REJECTED]
+            array_merge([$editionId, InvoiceRepo::STATUS_UNPAID, self::STATUS_REJECTED], $typeParams)
         );
     }
 
+    /**
+     * Jenis pembayar untuk filter halaman Payments (key '' = semua):
+     * author = paper; non_presenter = peserta NP-xxxx yang tidak ikut workshop;
+     * workshop = peserta NP-xxxx yang mendaftar workshop (atau kategori biayanya workshop).
+     */
+    public const TYPES = ['author' => 'Authors', 'non_presenter' => 'Non-presenters', 'workshop' => 'Workshop', '' => 'All'];
+
+    /**
+     * Potongan WHERE untuk jenis pembayar; butuh alias `a` (authors) dan `r` (registrations).
+     *
+     * @return array{0:string,1:array<int,mixed>}
+     */
+    public static function typeWhere(string $type): array
+    {
+        $workshop = "(EXISTS (SELECT 1 FROM workshop_registrations wr WHERE wr.author_id = a.id)
+                      OR EXISTS (SELECT 1 FROM fee_categories fc WHERE fc.id = r.fee_category_id
+                                 AND (LOWER(fc.code) LIKE '%workshop%' OR LOWER(fc.label) LIKE '%workshop%')))";
+
+        return match ($type) {
+            'author'        => [' AND a.paper_status != ?', [ParticipantRepo::STATUS]],
+            'non_presenter' => [' AND a.paper_status = ? AND NOT ' . $workshop, [ParticipantRepo::STATUS]],
+            'workshop'      => [' AND a.paper_status = ? AND ' . $workshop, [ParticipantRepo::STATUS]],
+            default         => ['', []],
+        };
+    }
+
     /** @return array<string,int> */
-    public static function countsByStatus(int $editionId): array
+    public static function countsByStatus(int $editionId, string $type = ''): array
     {
         $counts = array_fill_keys(self::STATUSES, 0);
+        [$typeSql, $typeParams] = self::typeWhere($type);
 
         foreach (Db::all(
-            'SELECT status, COUNT(*) AS total FROM payments WHERE edition_id = ? GROUP BY status',
-            [$editionId]
+            'SELECT p.status, COUNT(*) AS total FROM payments p
+             JOIN invoices i ON i.id = p.invoice_id
+             JOIN registrations r ON r.id = i.registration_id
+             JOIN authors a ON a.id = r.author_id
+             WHERE p.edition_id = ?' . $typeSql . ' GROUP BY p.status',
+            array_merge([$editionId], $typeParams)
         ) as $row) {
             $counts[(string) $row['status']] = (int) $row['total'];
         }
@@ -280,14 +313,18 @@ final class PaymentRepo
     }
 
     /** @return array<string,float> nominal yang sudah dikonfirmasi per mata uang */
-    public static function confirmedTotals(int $editionId): array
+    public static function confirmedTotals(int $editionId, string $type = ''): array
     {
         $totals = [];
+        [$typeSql, $typeParams] = self::typeWhere($type);
 
         foreach (Db::all(
-            'SELECT currency, SUM(amount_paid) AS amount FROM payments
-             WHERE edition_id = ? AND status = ? GROUP BY currency',
-            [$editionId, self::STATUS_CONFIRMED]
+            'SELECT p.currency, SUM(p.amount_paid) AS amount FROM payments p
+             JOIN invoices i ON i.id = p.invoice_id
+             JOIN registrations r ON r.id = i.registration_id
+             JOIN authors a ON a.id = r.author_id
+             WHERE p.edition_id = ? AND p.status = ?' . $typeSql . ' GROUP BY p.currency',
+            array_merge([$editionId, self::STATUS_CONFIRMED], $typeParams)
         ) as $row) {
             $totals[(string) $row['currency']] = (float) $row['amount'];
         }

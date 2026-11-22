@@ -4,6 +4,7 @@
  * @var array<string,float> $totals
  * @var array<int,string>   $statuses
  * @var array<int,array<string,mixed>> $unpaid  invoice belum lunas tanpa bukti bayar aktif
+ * @var string $type  '' (semua) | author | non_presenter | workshop
  */
 
 use Cenim\Domain\PaymentRepo;
@@ -15,6 +16,18 @@ $cards = [
     ['label' => 'Returned',  'value' => $counts[PaymentRepo::STATUS_REJECTED],  'icon' => 'fa-rotate-left',    'filter' => 'rejected'],
 ];
 ?>
+
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <div class="btn-group btn-group-sm flex-wrap" role="group" aria-label="Payer type">
+        <?php foreach (PaymentRepo::TYPES as $key => $label): ?>
+            <a class="btn <?= $type === $key ? 'btn-navy' : 'btn-outline-secondary' ?>"
+               href="<?= e(admin_url('payments.php?type=' . ($key === '' ? 'all' : $key))) ?>"><?= e($label) ?></a>
+        <?php endforeach; ?>
+    </div>
+    <span class="text-muted" style="font-size:12px">
+        <i class="fa-solid fa-circle-info me-1"></i>Workshop = non-presenter participants (NP-xxxx) who registered for a workshop.
+    </span>
+</div>
 
 <div class="row g-3 mb-3">
     <?php foreach ($cards as $card): ?>

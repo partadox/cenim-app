@@ -105,7 +105,6 @@ $err = static fn (string $field): string => isset($errors[$field])
                     <ul class="text-muted mt-2 mb-0 ps-3" style="font-size:12px">
                         <li>Upload the file to Google Drive, Google Slides or OneDrive and share it as "Anyone with the link — Viewer".</li>
                         <li>The committee prepares the slides on the room computer, so please send the final version.</li>
-                        <li>Use the official template: <a href="https://its.id/CENIM2026-TEMPLATE" target="_blank" rel="noopener">its.id/CENIM2026-TEMPLATE</a></li>
                     </ul>
                 </div>
             </div>

@@ -272,7 +272,7 @@ if (!AttendanceRepo::isAvailable($invoice)) {
                 ? 'Online presentation: send the link to the pre-recorded video and to your slides (both required).'
                 : 'Offline presentation: send the link to your slides (required) and a backup video (optional).'),
         'url'   => author_url('attendance.php'),
-        'cta'   => $isOnline && !$hasVideo ? 'Send the video' : 'Send the slides',
+        'cta'   => $isOnline ? 'Submit video & slides' : 'Submit slides',
     ];
 }
 

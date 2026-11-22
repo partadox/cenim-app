@@ -84,12 +84,15 @@ final class CertificateHtml
 
             $text = match ($kind) {
                 'name'        => (string) $certificate['recipient_name'],
-                'affiliation' => (string) ($certificate['recipient_affiliation'] ?? ''),
+                'affiliation' => trim((string) ($certificate['recipient_affiliation'] ?? '')) === ''
+                    ? ''
+                    : trim((string) $field['value'] . ' ' . $certificate['recipient_affiliation']),
+                'paper'       => self::paperTitle($certificate),
                 'number'      => trim((string) ($certificate['number'] ?? '')) === ''
                     ? ''
                     : trim((string) $field['value'] . ' ' . $certificate['number']),
                 'subject'     => (string) ($certificate['subject_title'] ?? ''),
-                'date'        => self::issuedLine($certificate, $edition),
+                'date'        => self::issuedLine($certificate, $edition, (string) $field['value']),
                 'code'        => 'Verification code: ' . $certificate['code'],
                 default       => self::staticText((string) $field['key'], (string) $field['value'], ...$signatory),
             };
@@ -154,10 +157,26 @@ final class CertificateHtml
         return self::$letterheads[$editionId] !== '' ? self::$letterheads[$editionId] : null;
     }
 
-    /** Baris tanggal: tanggal konferensi bila ada, kalau tidak tanggal terbit. */
-    public static function issuedLine(array $certificate, array $edition): string
+    /** Judul paper penerima: dari paper si penerima (Award), kalau tidak subject_title. */
+    private static function paperTitle(array $certificate): string
     {
-        $place = 'Surabaya, Indonesia';
+        if ((string) ($certificate['recipient_ref_type'] ?? '') === 'paper_author' && (int) ($certificate['recipient_ref_id'] ?? 0) > 0) {
+            $title = \Cenim\Core\Db::value(
+                'SELECT a.paper_title FROM paper_authors pa JOIN authors a ON a.id = pa.author_id WHERE pa.id = ?',
+                [(int) $certificate['recipient_ref_id']]
+            );
+            if ($title !== null && trim((string) $title) !== '') {
+                return (string) $title;
+            }
+        }
+
+        return (string) $certificate['type'] === CertificateRepo::TYPE_AWARD ? '' : (string) ($certificate['subject_title'] ?? '');
+    }
+
+    /** Baris tanggal: tanggal konferensi bila ada, kalau tidak tanggal terbit. $place dari field.value. */
+    public static function issuedLine(array $certificate, array $edition, string $place = ''): string
+    {
+        $place = trim($place) !== '' ? trim($place) : 'Surabaya, Indonesia';
         $start = (string) ($edition['conference_start'] ?? '');
         $end   = (string) ($edition['conference_end'] ?? '');
 

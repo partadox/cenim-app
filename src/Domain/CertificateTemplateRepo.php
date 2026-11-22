@@ -18,17 +18,18 @@ use Cenim\Storage\StorageManager;
  * Jenis field (kind):
  *   text    → tulisan tetap (isi di field.value)
  *   name    → nama penerima
- *   affiliation → instansi penerima
+ *   affiliation → instansi penerima (field.value = awalan opsional, mis. "From")
  *   number  → nomor sertifikat (nomor induk template + "-001")
  *   subject → judul paper / nama penghargaan
- *   date    → tanggal terbit
+ *   paper   → judul paper penerima (berguna di Award: subject = nama penghargaan)
+ *   date    → tanggal terbit (field.value = tempat, bawaan "Surabaya, Indonesia")
  *   code    → kode verifikasi
  *   qr        → QR menuju halaman verifikasi (size = lebar dalam mm)
  *   signature → gambar tanda tangan template (size = lebar dalam mm)
  */
 final class CertificateTemplateRepo
 {
-    public const KINDS = ['text', 'name', 'affiliation', 'number', 'subject', 'date', 'code', 'qr', 'signature'];
+    public const KINDS = ['text', 'name', 'affiliation', 'number', 'subject', 'paper', 'date', 'code', 'qr', 'signature'];
 
     public const PAGE_SIZES   = ['A4', 'LETTER'];
     public const ORIENTATIONS = ['L', 'P'];
@@ -217,6 +218,10 @@ final class CertificateTemplateRepo
      */
     public static function defaultFields(string $type): array
     {
+        if ($type === 'award') {
+            return self::awardFields();
+        }
+
         $heading = match ($type) {
             'presenter'   => 'CERTIFICATE OF PRESENTATION',
             'participant' => 'CERTIFICATE OF PARTICIPATION',
@@ -254,6 +259,37 @@ final class CertificateTemplateRepo
             ['key' => 'qr',       'kind' => 'qr',      'label' => 'QR code',        'value' => '',       'x' => 22, 'y' => 80, 'size' => 20, 'bold' => false, 'align' => 'C', 'color' => '#000000', 'width' => 20],
             ['key' => 'signature', 'kind' => 'signature', 'label' => 'Signature',    'value' => '',       'x' => 78, 'y' => 73, 'size' => 42, 'bold' => false, 'align' => 'C', 'color' => '#000000', 'width' => 42],
             ['key' => 'signatory', 'kind' => 'text',    'label' => 'Signatory',      'value' => '',       'x' => 78, 'y' => 86, 'size' => 10, 'bold' => true,  'align' => 'C', 'color' => '#101e41', 'width' => 40],
+        ];
+    }
+
+    /**
+     * Tata letak Award (mis. Best Paper / Best Presenter), dirancang untuk gambar
+     * latar CENIM 2026 (logo di atas, garis emas di bawah nama sudah ada di gambar).
+     * subject = nama penghargaan yang ditulis admin, paper = judul paper penerima.
+     */
+    private static function awardFields(): array
+    {
+        $f = static fn (string $key, string $kind, string $label, string $value, float $y, int $size, bool $bold, string $color, float $width, string $font = 'sans', float $x = 50, bool $hidden = false): array
+            => compact('key', 'kind', 'label', 'value', 'x', 'y', 'size', 'bold', 'color', 'width', 'font', 'hidden') + ['align' => 'C'];
+
+        return [
+            $f('heading', 'text', 'Heading', 'Certificate', 13.2, 58, true, '#033A80', 80, 'serif'),
+            $f('number', 'number', 'Certificate number', 'No.', 25.6, 11, false, '#33415C', 70),
+            $f('intro', 'text', 'Intro line', 'This certificate is proudly awarded to', 28.6, 13, false, '#33415C', 80),
+            $f('name', 'name', 'Recipient name', '', 31.6, 36, true, '#0B1A3E', 88),
+            $f('affiliation', 'affiliation', 'Affiliation', 'From', 42.4, 13, false, '#0B1A3E', 86),
+            $f('for_line', 'text', 'Reason line', 'in recognition of the', 47.4, 12, false, '#33415C', 70),
+            $f('subject', 'subject', 'Award title', '', 50.0, 23, true, '#033A80', 86),
+            $f('paper_line', 'text', 'Paper line', 'for the paper entitled:', 55.8, 12, false, '#33415C', 70),
+            $f('paper', 'paper', 'Paper title', '', 58.4, 15, true, '#0B1A3E', 77),
+            $f('conference', 'text', 'Conference', 'The 7th International Conference on Computer Engineering, Network, and Intelligent Multimedia (CENIM 2026)', 66.6, 11, false, '#0B1A3E', 88),
+            $f('venue', 'text', 'Venue', 'Hybrid Conference, 24-25 November 2026, Banyuwangi, Indonesia', 69.6, 11, false, '#33415C', 80),
+            $f('place_date', 'text', 'Place and date', "Banyuwangi, 25 November 2026\nGeneral Chair,", 74.2, 11, false, '#33415C', 50),
+            $f('date', 'date', 'Issue date', '', 74.2, 11, false, '#33415C', 50, 'sans', 50, true),
+            ['key' => 'signature', 'kind' => 'signature', 'label' => 'Signature', 'value' => '', 'x' => 50, 'y' => 78.2, 'size' => 40, 'bold' => false, 'align' => 'C', 'color' => '#000000', 'width' => 40, 'font' => 'sans', 'hidden' => false],
+            $f('signatory', 'text', 'Signatory', '', 86.4, 11, true, '#0B1A3E', 40),
+            ['key' => 'qr', 'kind' => 'qr', 'label' => 'QR code', 'value' => '', 'x' => 14, 'y' => 71, 'size' => 22, 'bold' => false, 'align' => 'C', 'color' => '#000000', 'width' => 22, 'font' => 'sans', 'hidden' => false],
+            $f('code', 'code', 'Verification code', '', 82.2, 7, false, '#33415C', 24, 'sans', 14),
         ];
     }
 

@@ -31,10 +31,11 @@
     function previewText(field) {
         switch (field.kind) {
             case 'name':      return sample.name || 'Recipient Name';
-            case 'affiliation': return sample.affiliation || 'Institut Teknologi Sepuluh Nopember';
+            case 'affiliation': return (field.value ? field.value + ' ' : '') + (sample.affiliation || 'Institut Teknologi Sepuluh Nopember');
+            case 'paper':     return sample.paper || 'Title of the paper of the recipient';
             case 'number':    return (field.value ? field.value + ' ' : '') + (sample.number || '0000/XX/2026-001');
             case 'subject':   return sample.subject || 'Paper title';
-            case 'date':      return sample.date || '';
+            case 'date':      return (field.value || 'Surabaya, Indonesia') + ', ' + (sample.date || '');
             case 'code':      return 'Verification code: ' + (sample.code || '');
             case 'qr':        return 'QR';
             case 'signature': return 'signature';
@@ -127,7 +128,8 @@
         editor.label.textContent = field.label + ' (' + field.kind + ')';
 
         editor.text.value = field.value || '';
-        editor.text.disabled = field.kind !== 'text' && field.kind !== 'number';
+        // number/affiliation: awalan; date: tempat.
+        editor.text.disabled = ['text', 'number', 'affiliation', 'date'].indexOf(field.kind) === -1;
         editor.size.value = field.size;
         editor.width.value = field.width;
         editor.align.value = field.align;

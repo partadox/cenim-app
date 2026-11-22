@@ -96,7 +96,7 @@ $pageH = $template['orientation'] === 'P' ? 297 : 210;
             <div class="cn-card-body">
                 <div class="row g-2" id="cnFieldEditor" style="display:none">
                     <div class="col-md-6">
-                        <label class="form-label" for="fText" style="font-size:12px">Text (static elements only)</label>
+                        <label class="form-label" for="fText" style="font-size:12px">Text (static text; prefix for number and affiliation; place for date)</label>
                         <input type="text" class="form-control form-control-sm" id="fText" maxlength="300">
                     </div>
                     <div class="col-md-3">
@@ -258,5 +258,6 @@ $pageH = $template['orientation'] === 'P' ? 297 : 210;
     'code'    => $sample['code'] ?? 'CENIM2026-XXX-0000',
     'affiliation' => $sample['recipient_affiliation'] ?? 'Institut Teknologi Sepuluh Nopember',
     'number'  => $sample['number'] ?? ((($template['number_base'] ?? '') !== '') ? $template['number_base'] . '-001' : '0000/XX/2026-001'),
-    'date'    => 'Surabaya, Indonesia, ' . fmt_date(now()),
+    'paper'   => 'Title of the paper of the recipient',
+    'date'    => fmt_date(now()),
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?></script>

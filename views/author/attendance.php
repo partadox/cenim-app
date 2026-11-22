@@ -93,13 +93,11 @@ $err = static fn (string $field): string => isset($errors[$field])
                 <div class="cn-card-head">
                     <i class="fa-solid fa-file-powerpoint text-muted"></i>
                     <h2>Presentation slides</h2>
-                    <span class="cn-badge <?= $isOnline ? 'cn-badge-draft' : 'cn-badge-submitted' ?> ms-auto">
-                        <?= $isOnline ? 'optional — online presentation' : 'required — offline presentation' ?>
-                    </span>
+                    <span class="cn-badge cn-badge-submitted ms-auto">required</span>
                 </div>
                 <div class="cn-card-body">
                     <label class="form-label" for="slides_url">
-                        Link to the slide file (PPT, PPTX or PDF)<?= $isOnline ? '' : ' <span class="text-danger">*</span>' ?>
+                        Link to the slide file (PPT, PPTX or PDF) <span class="text-danger">*</span>
                     </label>
                     <input type="url" class="form-control<?= isset($errors['slides_url']) ? ' is-invalid' : '' ?>" id="slides_url" name="slides_url"
                            value="<?= e((string) $values['slides_url']) ?>" placeholder="https://drive.google.com/file/d/… or https://docs.google.com/presentation/…" <?= $disabled ?>>

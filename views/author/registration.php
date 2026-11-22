@@ -270,7 +270,7 @@ $attendeeRow = static function (string $i, array $row) use ($paperAuthors, $disa
                                 <?php endforeach; ?>
                             </div>
                             <div class="form-text" style="font-size:11.5px">
-                                After the payment is confirmed, send your files in the <b>Presentation Files form</b>: online presenters send the video, offline presenters send the slides.
+                                After the payment is confirmed, send your files in the <b>Presentation Files form</b>: every presenter sends the slides, and online presenters also send the video.
                             </div>
                         </div>
 

@@ -17,7 +17,7 @@ $tabs = [
     'offline' => ['Offline', $counts['offline']],
     'online'  => ['Online', $counts['online']],
     'missing' => ['Online without video', $counts['missing']],
-    'missing_slides' => ['Offline without slides', $counts['missing_slides']],
+    'missing_slides' => ['Without slides', $counts['missing_slides']],
 ];
 ?>
 

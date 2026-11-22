@@ -253,12 +253,12 @@ $hasVideo   = ($attendance['video_url'] ?? '') !== '';
 $hasSlides  = ($attendance['slides_url'] ?? '') !== '';
 
 if (!AttendanceRepo::isAvailable($invoice)) {
-    $step5 = ['state' => 'locked', 'note' => 'Opens once your payment is confirmed. Online: send the video; offline: send the slides.', 'url' => null, 'cta' => null];
+    $step5 = ['state' => 'locked', 'note' => 'Opens once your payment is confirmed. Send your slides here (online presentations also send the video).', 'url' => null, 'cta' => null];
 } elseif (AttendanceRepo::complete($attendance, $isOnline)) {
     $step5 = [
         'state' => 'done',
         'note'  => $isOnline
-            ? 'Video link sent' . ($hasSlides ? ', slides link sent.' : '. The slides link is optional.')
+            ? 'Video and slides links sent.'
             : 'Slides link sent' . ($hasVideo ? ', backup video sent.' : '. A backup video is optional.'),
         'url'   => author_url('attendance.php'),
         'cta'   => $attendOpen ? 'View or change' : 'View',
@@ -269,10 +269,10 @@ if (!AttendanceRepo::isAvailable($invoice)) {
         'note'  => !$attendOpen
             ? 'The presentation files form is currently closed.'
             : ($isOnline
-                ? 'Online presentation: send the link to the pre-recorded video (required) and to your slides (optional).'
+                ? 'Online presentation: send the link to the pre-recorded video and to your slides (both required).'
                 : 'Offline presentation: send the link to your slides (required) and a backup video (optional).'),
         'url'   => author_url('attendance.php'),
-        'cta'   => $isOnline ? 'Send the video' : 'Send the slides',
+        'cta'   => $isOnline && !$hasVideo ? 'Send the video' : 'Send the slides',
     ];
 }
 

@@ -12,8 +12,8 @@ use Cenim\Core\Db;
  * Siapa yang presentasi, mode offline/online, dan siapa saja yang datang
  * ditentukan di Registration form (registrations + registration_attendees).
  * Form ini menerima link video presentasi (Google Drive / YouTube) dan link
- * file slide (PPT/PDF). Online: video wajib, slide opsional.
- * Offline: slide wajib, video opsional (cadangan).
+ * file slide (PPT/PDF). Slide wajib untuk semua presenter; video wajib untuk
+ * online, opsional (cadangan) untuk offline.
  *
  * Tersedia setelah pembayaran lunas dan selama dibuka (Settings →
  * attendance_open + batas waktu attendance_deadline). Kolom mode/presenter/
@@ -81,10 +81,11 @@ final class AttendanceRepo
         return filter_var($url, FILTER_VALIDATE_URL) !== false && preg_match('#^https://#i', $url) === 1;
     }
 
-    /** Yang wajib sudah dikirim? Online: video; offline: slide. */
+    /** Yang wajib sudah dikirim? Semua: slide; online: juga video. */
     public static function complete(?array $attendance, bool $isOnline): bool
     {
-        return ((string) ($attendance[$isOnline ? 'video_url' : 'slides_url'] ?? '')) !== '';
+        return ((string) ($attendance['slides_url'] ?? '')) !== ''
+            && (!$isOnline || ((string) ($attendance['video_url'] ?? '')) !== '');
     }
 
     /**
@@ -169,7 +170,7 @@ final class AttendanceRepo
      * Daftar untuk admin: semua paper yang sudah lunas — presenter, mode,
      * siapa saja yang datang (dengan ukuran baju), dan video presentasinya.
      *
-     * @param string $filter '' | offline | online | missing (online tanpa video) | missing_slides (offline tanpa slide)
+     * @param string $filter '' | offline | online | missing (online tanpa video) | missing_slides (tanpa slide)
      * @return array<int,array<string,mixed>>
      */
     public static function overview(int $editionId, string $filter = ''): array
@@ -194,7 +195,7 @@ final class AttendanceRepo
             $row['mode']      = (string) ($row['mode'] ?: 'offline');
             $row['attendees'] = RegistrationRepo::attendees((int) $row['registration_id']);
             $row['missing']        = $row['mode'] === 'online' && ($row['video_url'] ?? '') === '';
-            $row['missing_slides'] = $row['mode'] !== 'online' && ($row['slides_url'] ?? '') === '';
+            $row['missing_slides'] = ($row['slides_url'] ?? '') === '';
 
             $keep = match ($filter) {
                 'offline', 'online' => $row['mode'] === $filter,

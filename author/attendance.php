@@ -1,7 +1,7 @@
 <?php
 /**
  * Form 5 — Presentation Files: link video presentasi (Google Drive / YouTube)
- * dan link file slide. Online: video wajib; offline: slide wajib.
+ * dan link file slide. Slide wajib untuk semua; video wajib untuk online.
  *
  * Presenter dan mode offline/online diisi di Registration form; di sini hanya
  * link video — wajib untuk presentasi online, opsional (cadangan) untuk
@@ -69,7 +69,7 @@ if (is_post()) {
         Response::redirect(author_url('attendance.php'));
     }
 
-    $check = AttendanceRepo::validate($_POST, $isOnline, !$isOnline);
+    $check = AttendanceRepo::validate($_POST, $isOnline, true);
     $extra = FormRepo::validate($extraFields, (array) ($_POST['extra'] ?? []));
 
     $errors = $check['errors'];

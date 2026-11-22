@@ -100,7 +100,7 @@ $pageH = $template['orientation'] === 'P' ? 297 : 210;
                         <input type="text" class="form-control form-control-sm" id="fText" maxlength="300">
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label" for="fSize" style="font-size:12px">Size (pt / mm for QR)</label>
+                        <label class="form-label" for="fSize" style="font-size:12px">Size (pt; mm for QR and signature; 0.1 mm for line)</label>
                         <input type="number" class="form-control form-control-sm" id="fSize" min="5" max="60">
                     </div>
                     <div class="col-md-3">

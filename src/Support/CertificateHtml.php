@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cenim\Support;
 
+use Cenim\Domain\BrandingRepo;
 use Cenim\Domain\CertificateRepo;
 use Cenim\Domain\CertificateTemplateRepo;
 use Cenim\Domain\EditionRepo;
@@ -56,7 +57,16 @@ final class CertificateHtml
         }
 
         $background = self::fileUrl((int) ($template['background_file_id'] ?? 0));
-        $signature  = self::fileUrl((int) ($template['signature_file_id'] ?? 0));
+        // Tanda tangan: gambar template bila diunggah, kalau tidak tanda tangan chair
+        // dari Settings (sama dengan surat/LoA), ditumpuk stempel konferensi.
+        $ownSignature = (int) ($template['signature_file_id'] ?? 0) > 0;
+        $chairFile    = $ownSignature ? null : BrandingRepo::signatureFile($editionId, 'chair');
+        $signature    = $ownSignature
+            ? self::fileUrl((int) $template['signature_file_id'])
+            : ($chairFile !== null ? self::fileUrl((int) $chairFile['id']) : null);
+        $signRatio    = self::imageRatio($ownSignature ? CertificateTemplateRepo::signaturePath($template) : ($chairFile !== null ? BrandingRepo::signaturePath($editionId, 'chair') : null));
+        $stampFile    = BrandingRepo::signatureFile($editionId, 'stamp');
+        $stampRatio   = $stampFile !== null ? self::imageRatio(BrandingRepo::signaturePath($editionId, 'stamp')) : 1.0;
         $signatory  = array_values(SettingRepo::chair($editionId));
 
         $items = [];
@@ -78,7 +88,27 @@ final class CertificateHtml
                 if ($src !== null) {
                     $size    = (float) $field['size'];
                     $items[] = ['type' => 'image', 'src' => $src, 'left' => $x - $size / 2, 'top' => $y, 'width' => $size];
+
+                    // Stempel: titik tengahnya digeser dx/dy mm dari tengah tanda tangan (Settings → stamp).
+                    if ($kind === 'signature' && $stampFile !== null) {
+                        $stamp   = SettingRepo::stamp($editionId);
+                        $stampW  = (float) $stamp['size'];
+                        $items[] = [
+                            'type'  => 'image',
+                            'src'   => self::fileUrl((int) $stampFile['id']),
+                            'left'  => $x + (float) $stamp['dx'] - $stampW / 2,
+                            'top'   => $y + $size * $signRatio / 2 + (float) $stamp['dy'] - $stampW * $stampRatio / 2,
+                            'width' => $stampW,
+                        ];
+                    }
                 }
+                continue;
+            }
+
+            if ($kind === 'line') {
+                $left = match ((string) $field['align']) { 'L' => $x, 'R' => $x - $width, default => $x - $width / 2 };
+                $items[] = ['type' => 'line', 'left' => $left, 'top' => $y, 'width' => $width,
+                    'height' => max(0.2, (float) $field['size'] / 10), 'color' => (string) $field['color']];
                 continue;
             }
 
@@ -136,6 +166,14 @@ final class CertificateHtml
             'letterhead' => $background === null ? self::letterhead($editionId) : null,
             'items'      => $items,
         ];
+    }
+
+    /** Rasio tinggi/lebar gambar (0,4 bila tidak terbaca). */
+    private static function imageRatio(?string $path): float
+    {
+        $size = $path !== null && is_file($path) ? @getimagesize($path) : false;
+
+        return $size !== false && $size[0] > 0 ? $size[1] / $size[0] : 0.4;
     }
 
     /** URL same-origin untuk berkas template (dimuat lewat public/file.php). */

@@ -39,6 +39,7 @@
             case 'code':      return 'Verification code: ' + (sample.code || '');
             case 'qr':        return 'QR';
             case 'signature': return 'signature';
+            case 'line':      return '';
             default:          return field.value || '(' + field.label + ')';
         }
     }
@@ -67,7 +68,13 @@
             chip.style.outline = selected === index ? '2px solid #febd06' : '1px dashed rgba(0,57,129,.35)';
             chip.style.padding = '1px 2px';
 
-            if (isBox) {
+            if (field.kind === 'line') {
+                chip.style.width = field.width / 100 * canvas.clientWidth + 'px';
+                chip.style.height = Math.max(2, field.size / 10 * pxPerMm()) + 'px';
+                chip.style.background = field.color;
+                chip.style.padding = '0';
+                chip.style.transform = field.align === 'C' ? 'translateX(-50%)' : (field.align === 'R' ? 'translateX(-100%)' : 'none');
+            } else if (isBox) {
                 var boxPx = field.size * pxPerMm();
                 chip.style.width = boxPx + 'px';
                 chip.style.height = boxPx * (field.kind === 'signature' ? 0.4 : 1) + 'px';

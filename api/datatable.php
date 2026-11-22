@@ -515,11 +515,10 @@ switch ($table) {
                         . '<input type="hidden" name="action" value="restore">'
                         . '<button type="submit" class="btn btn-sm btn-outline-secondary" title="Restore">'
                         . '<i class="fa-solid fa-rotate-left"></i></button></form>';
-                } else {
-                    $actions .= '<button type="button" class="btn btn-sm btn-outline-danger cn-revoke" title="Revoke"'
-                        . ' data-id="' . $id . '" data-code="' . e((string) $row['code']) . '">'
-                        . '<i class="fa-solid fa-ban"></i></button>';
                 }
+                $actions .= '<button type="button" class="btn btn-sm btn-outline-danger cn-delete-cert" title="Delete"'
+                    . ' data-id="' . $id . '" data-code="' . e((string) $row['code']) . '" data-name="' . e((string) $row['recipient_name']) . '">'
+                    . '<i class="fa-solid fa-trash"></i></button>';
 
                 $actions .= '</div>';
 

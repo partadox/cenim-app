@@ -595,6 +595,26 @@ final class CertificateRepo
         ]);
     }
 
+    /** Hapus sertifikat (link verifikasinya ikut tidak berlaku). */
+    public static function delete(int $id, string $actor = 'admin'): void
+    {
+        $certificate = self::find($id);
+        Db::run('DELETE FROM certificates WHERE id = ?', [$id]);
+
+        Audit::log('certificate.deleted', [
+            'actor_type'  => 'admin',
+            'actor_id'    => $actor,
+            'target_type' => 'certificate',
+            'target_id'   => $id,
+            'meta'        => [
+                'code'      => $certificate['code'] ?? null,
+                'type'      => $certificate['type'] ?? null,
+                'recipient' => $certificate['recipient_name'] ?? null,
+                'subject'   => $certificate['subject_title'] ?? null,
+            ],
+        ]);
+    }
+
     public static function restore(int $id, string $actor = 'admin'): void
     {
         Db::update('certificates', [

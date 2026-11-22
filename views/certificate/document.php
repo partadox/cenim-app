@@ -55,6 +55,7 @@ $fmt   = static fn (float $mm): string => rtrim(rtrim(number_format($mm, 3, '.',
         .cn-sheet .cn-kop { position: absolute; top: 14mm; left: 50%; transform: translateX(-50%); }
         .cn-sheet .cn-text { position: absolute; white-space: pre-line; word-wrap: break-word; margin: 0; }
         .cn-sheet .cn-img { position: absolute; display: block; }
+        .cn-sheet .cn-line { position: absolute; border-radius: 1mm; }
         .cn-sheet .cn-revoked {
             position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 5;
             font: 700 60pt 'Poppins', sans-serif; color: rgba(200, 40, 40, .28); transform: rotate(-18deg); letter-spacing: 6px;
@@ -97,6 +98,8 @@ $fmt   = static fn (float $mm): string => rtrim(rtrim(number_format($mm, 3, '.',
                     <?php if ($item['type'] === 'image'): ?>
                         <img class="cn-img" src="<?= e((string) $item['src']) ?>" alt=""
                              style="left:<?= $fmt((float) $item['left']) ?>;top:<?= $fmt((float) $item['top']) ?>;width:<?= $fmt((float) $item['width']) ?>">
+                    <?php elseif ($item['type'] === 'line'): ?>
+                        <div class="cn-line" style="left:<?= $fmt((float) $item['left']) ?>;top:<?= $fmt((float) $item['top']) ?>;width:<?= $fmt((float) $item['width']) ?>;height:<?= $fmt((float) $item['height']) ?>;background:<?= e((string) $item['color']) ?>"></div>
                     <?php else: ?>
                         <p class="cn-text" style="left:<?= $fmt((float) $item['left']) ?>;top:<?= $fmt((float) $item['top']) ?>;width:<?= $fmt((float) $item['width']) ?>;font-size:<?= (int) $item['size'] ?>pt;line-height:<?= $fmt((float) $item['lineHeight']) ?>;font-weight:<?= $item['bold'] ? 700 : 400 ?>;text-align:<?= e((string) $item['align']) ?>;color:<?= e((string) $item['color']) ?>;font-family:<?= e((string) $item['font']) ?>"><?= e((string) $item['text']) ?></p>
                     <?php endif; ?>

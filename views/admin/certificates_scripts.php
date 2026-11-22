@@ -56,12 +56,12 @@
     });
 
     document.querySelector('#certificatesTable tbody')?.addEventListener('click', function (event) {
-        var button = event.target.closest('.cn-revoke');
+        var button = event.target.closest('.cn-delete-cert');
         if (!button) { return; }
-        document.getElementById('revokeId').value = button.dataset.id;
-        document.getElementById('revokeCode').textContent = button.dataset.code;
-        document.getElementById('revokeReason').value = '';
-        new bootstrap.Modal(document.getElementById('revokeModal')).show();
+        document.getElementById('deleteCertId').value = button.dataset.id;
+        document.getElementById('deleteCertCode').textContent = button.dataset.code;
+        document.getElementById('deleteCertName').textContent = button.dataset.name;
+        new bootstrap.Modal(document.getElementById('deleteCertModal')).show();
     });
 
     // ── Pencarian penerima penghargaan ──────────────────────────────────────

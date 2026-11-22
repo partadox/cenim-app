@@ -25,11 +25,13 @@ use Cenim\Storage\StorageManager;
  *   date    → tanggal terbit (field.value = tempat, bawaan "Surabaya, Indonesia")
  *   code    → kode verifikasi
  *   qr        → QR menuju halaman verifikasi (size = lebar dalam mm)
- *   signature → gambar tanda tangan template (size = lebar dalam mm)
+ *   signature → tanda tangan (size = lebar dalam mm): gambar template bila diunggah, kalau
+ *               tidak tanda tangan chair dari Settings (sama dengan surat/LoA) + stempel konferensi
+ *   line    → garis hias (size = tebal dalam 0,1 mm, width = panjang, color = warna)
  */
 final class CertificateTemplateRepo
 {
-    public const KINDS = ['text', 'name', 'affiliation', 'number', 'subject', 'paper', 'date', 'code', 'qr', 'signature'];
+    public const KINDS = ['text', 'name', 'affiliation', 'number', 'subject', 'paper', 'date', 'code', 'qr', 'signature', 'line'];
 
     public const PAGE_SIZES   = ['A4', 'LETTER'];
     public const ORIENTATIONS = ['L', 'P'];
@@ -264,7 +266,7 @@ final class CertificateTemplateRepo
 
     /**
      * Tata letak Award (mis. Best Paper / Best Presenter), dirancang untuk gambar
-     * latar CENIM 2026 (logo di atas, garis emas di bawah nama sudah ada di gambar).
+     * latar CENIM 2026 (logo di atas, bidang tengah terang).
      * subject = nama penghargaan yang ditulis admin, paper = judul paper penerima.
      */
     private static function awardFields(): array
@@ -277,6 +279,7 @@ final class CertificateTemplateRepo
             $f('number', 'number', 'Certificate number', 'No.', 25.6, 11, false, '#33415C', 70),
             $f('intro', 'text', 'Intro line', 'This certificate is proudly awarded to', 28.6, 13, false, '#33415C', 80),
             $f('name', 'name', 'Recipient name', '', 31.6, 36, true, '#0B1A3E', 88),
+            $f('gold_line', 'line', 'Gold line', '', 40.7, 14, false, '#F2B417', 53),
             $f('affiliation', 'affiliation', 'Affiliation', 'From', 42.4, 13, false, '#0B1A3E', 86),
             $f('for_line', 'text', 'Reason line', 'in recognition of the', 47.4, 12, false, '#33415C', 70),
             $f('subject', 'subject', 'Award title', '', 50.0, 23, true, '#033A80', 86),

@@ -180,29 +180,27 @@ use Cenim\Domain\CertificateRepo;
     </div>
 </div>
 
-<!-- Modal revoke -->
-<div class="modal fade" id="revokeModal" tabindex="-1" aria-hidden="true">
+<!-- Modal hapus -->
+<div class="modal fade" id="deleteCertModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <form class="modal-content" method="post" action="<?= e(admin_url('certificate-revoke.php')) ?>">
+        <form class="modal-content" method="post" action="<?= e(admin_url('certificate-delete.php')) ?>">
             <?= Csrf::field() ?>
-            <input type="hidden" name="id" id="revokeId">
+            <input type="hidden" name="id" id="deleteCertId">
             <div class="modal-header">
-                <h5 class="modal-title" style="font-size:15px">Revoke certificate <span id="revokeCode"></span></h5>
+                <h5 class="modal-title" style="font-size:15px">Delete certificate <span id="deleteCertCode"></span></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <p class="text-muted" style="font-size:12.5px">
-                    The record and its code stay in the system for the audit trail. The verification page will show it
-                    as <b>not valid</b>, and the author can no longer download it.
+            <div class="modal-body" style="font-size:13px">
+                <p class="mb-2">Delete the certificate of <b id="deleteCertName"></b>?</p>
+                <p class="text-muted mb-0" style="font-size:12.5px">
+                    The verification link stops working and the recipient can no longer download it.
+                    Automatic certificates (author, presenter, participant, committee, workshop) can be issued again with the Issue button.
                 </p>
-                <label class="form-label" for="revokeReason" style="font-size:12.5px">Reason</label>
-                <input type="text" class="form-control" id="revokeReason" name="reason" maxlength="300"
-                       placeholder="e.g. issued with a misspelled name" required>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-outline-danger btn-sm">
-                    <i class="fa-solid fa-ban me-1"></i>Revoke
+                <button type="submit" class="btn btn-danger btn-sm">
+                    <i class="fa-solid fa-trash me-1"></i>Delete
                 </button>
             </div>
         </form>

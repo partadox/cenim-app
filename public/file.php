@@ -60,9 +60,9 @@ if ($allowed) {
 } elseif (AdminAuth::isLoggedIn()) {
     $allowed = true;
 } elseif (
-    // Latar & tanda tangan template sertifikat: dimuat oleh halaman sertifikat
-    // HTML milik author/panitia yang sedang login.
-    in_array((string) $file['purpose'], ['certificate_background', 'certificate_signature'], true)
+    // Latar & tanda tangan template sertifikat (juga tanda tangan chair & stempel
+    // dari Settings): dimuat oleh halaman sertifikat HTML milik author/panitia yang login.
+    in_array((string) $file['purpose'], ['certificate_background', 'certificate_signature', 'chair_signature', 'conference_stamp'], true)
     && AuthorAuth::isLoggedIn()
 ) {
     $allowed = true;
